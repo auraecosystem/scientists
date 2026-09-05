@@ -1,7 +1,7 @@
 export type Availability='unavailable'|'downloadable'|'downloading'|'available';
 export type LanguageModelSamplingMode='most-predictable'|'predictable'|'slightly-predictable'|'balanced'|'slightly-creative'|'creative'|'most-creative';
 export interface InitialPrompt{role:'system'|'user'|'assistant';content:string;prefix?:boolean}
-export interface SessionOptions{systemPrompt?:string;initialPrompts?:InitialPrompt[];expectedInputs?:Array<{type:'text'|'image'|'audio';languages?:string[]}>;expectedOutputs?:Array<{type:'text';languages?:string[]}>;samplingMode?:LanguageModelSamplingMode;topK?:number;temperature?:number;onContextOverflow?:(event:Event)=>void}
+export interface SessionOptions{systemPrompt?:string;initialPrompts?:InitialPrompt[];expectedInputs?:Array<{type:'text'|'image'|'audio';languages?:string[]}>;expectedOutputs?:Array<{type:'text';languages?:string[]}>;samplingMode?:LanguageModelSamplingMode;topK?:number;temperature?:number;maxTokenBudget?:number;onContextOverflow?:(event:Event)=>void}
 export type MediaInput=Blob|HTMLCanvasElement|HTMLImageElement|AudioBuffer|ArrayBuffer|ArrayBufferView;
 export interface MultimodalPart{type:'text'|'image'|'audio';value?:string|MediaInput;base64Data?:string;mimeType?:string}
 export interface MultimodalMessage{role:'user'|'assistant'|'system';content:string|MultimodalPart[]}
