@@ -1,0 +1,21 @@
+[tools]
+python = "3.12.13"
+node = "20.20.2"
+ruby = "3.4.4"
+rust = "1.89.0"
+swift = "6.1.3"
+php = "8.4"
+java = "21.0.2"
+go = "1.24.3"
+
+[tasks.test]
+description = "Run the scientific runtime test suite"
+run = "python -m pytest"
+
+[tasks.typecheck]
+description = "Run strict static type checking"
+run = "python -m mypy scientists"
+
+[tasks.verify]
+description = "Run tests and type checks"
+depends = ["test", "typecheck"]
