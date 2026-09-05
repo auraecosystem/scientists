@@ -15,11 +15,3 @@ python -m scientists.runtime.cli 'research reproducibility' --json
 ```
 
 The runtime retrieves matching knowledge records, executes a research agent, retains evidence identifiers, and verifies that a non-empty result was produced.
-
-## Chrome Built-in AI
-
-The browser layer in `in-built/builtin-ai.mjs` integrates Chrome's Prompt API (`LanguageModel`) without coupling the Python runtime to a browser. It performs the required capability/availability check, passes identical input/output modality options to `availability()` and `create()`, exposes model download progress, reports the post-download extraction/loading phase, and streams prompt output.
-
-A runnable browser example is available at `in-built/builtin-ai-demo.html`. Open it from a browser context that supports Chrome Built-in AI and the Prompt API. The adapter also exposes `createHybridRunner()` so an application can keep a cloud implementation as a fallback while the local model is unavailable or fails.
-
-The local adapter is deliberately provider-neutral: the repository does not embed cloud credentials or a cloud endpoint. Supply a `cloudPrompt` function from the host application when a hybrid deployment is desired.
