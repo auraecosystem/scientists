@@ -1,0 +1,51 @@
+name: Scientists PyScript CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pyscript:
+    name: Validate PyScript browser integration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Python syntax
+        run: |
+          python -m compileall -q scientists Pythonscript
+
+      - name: Run Scientists test suite
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12.13"
+          enable-cache: true
+
+      - run: uv sync --extra dev
+      - run: uv run pytest
+      - run: uv run mypy scientists
+
+      - name: Validate PyScript entrypoint
+        run: |
+          test -f Pythonscript/scientists.html
+          test -f Pythonscript/pyscript/entrypoint.py
+          grep -q 'id="scientists-app"' Pythonscript/scientists.html
+          grep -q 'type="py"' Pythonscript/scientists.html
+          grep -q 'scientists.web' Pythonscript/pyscript/entrypoint.py
+          grep -q 'mount_scientists_ui' Pythonscript/pyscript/entrypoint.py
+
+      - name: Enforce self-contained browser entrypoint
+        run: |
+          if grep -RInE 'https?://|//[A-Za-z0-9.-]+\.[A-Za-z]{2,}' Pythonscript/scientists.html Pythonscript/README.md; then
+            echo "External URLs are not permitted in the Scientists PyScript browser entrypoint or its README."
+            exit 1
+          fi
