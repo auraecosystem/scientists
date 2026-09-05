@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aura Scientists</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color-scheme: light dark; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 2rem; }
+    #scientists-app { width: min(720px, 100%); display: grid; gap: 1rem; }
+    #scientists-prompt { box-sizing: border-box; width: 100%; padding: .8rem; }
+    #scientists-run { width: fit-content; padding: .7rem 1.2rem; cursor: pointer; }
+    .scientists-output { white-space: pre-wrap; line-height: 1.5; padding: 1rem; border: 1px solid currentColor; border-radius: .5rem; min-height: 5rem; }
+  </style>
+</head>
+<body>
+  <main id="scientists-app" aria-label="Aura Scientists"></main>
+
+  <!-- The host PyScript runtime loads this local entrypoint. No remote assets are required by this page. -->
+  <script type="py" src="./pyscript/entrypoint.py"></script>
+</body>
+</html>
