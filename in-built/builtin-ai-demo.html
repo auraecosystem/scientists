@@ -18,25 +18,28 @@
   <progress id="progress" max="1" value="0" hidden></progress>
   <button id="create">Initialize AI</button>
   <button id="prompt" disabled>Ask scientist</button>
+  <button id="stop" disabled>Stop</button>
   <output id="output" aria-live="polite"></output>
 
   <script type="module">
-    import { createSmartSession } from './builtin-ai.mjs';
+    import { createSmartSession, isAbortError } from './builtin-ai.mjs';
 
     function init() {
       const createButton = document.querySelector('#create');
       const promptButton = document.querySelector('#prompt');
+      const stopButton = document.querySelector('#stop');
       const progress = document.querySelector('#progress');
       const status = document.querySelector('#status');
       const output = document.querySelector('#output');
 
-      if (!createButton || !promptButton || !progress || !status || !output) {
+      if (!createButton || !promptButton || !stopButton || !progress || !status || !output) {
         console.error('Scientists AI demo: required DOM elements are missing.');
         return;
       }
 
       let session = null;
       let sessionCreationTriggered = false;
+      let promptController = null;
 
       const hideProgress = () => {
         progress.hidden = true;
@@ -46,6 +49,7 @@
 
       const showDownloadProgress = () => {
         progress.hidden = false;
+        progress.max = 1;
         progress.value = 0;
         progress.setAttribute('aria-label', 'Downloading local AI model');
       };
@@ -99,7 +103,7 @@
           session = null;
           throw error;
         } finally {
-          // Always clear the guard so a failed initialization can be retried.
+          // Always clear the guard so failed initialization can be retried.
           sessionCreationTriggered = false;
         }
       };
@@ -109,6 +113,7 @@
 
         createButton.disabled = true;
         promptButton.disabled = true;
+        stopButton.disabled = true;
         output.textContent = '';
 
         try {
@@ -120,6 +125,7 @@
           const created = await createSession(options);
           if (!created) throw new Error('AI session creation is already in progress.');
           promptButton.disabled = false;
+          createButton.textContent = 'Reinitialize AI';
         } catch (error) {
           status.textContent = error instanceof Error ? error.message : String(error);
           createButton.disabled = false;
@@ -131,21 +137,37 @@
         if (!session) return;
 
         promptButton.disabled = true;
+        stopButton.disabled = false;
+        promptController = new AbortController();
         output.textContent = '';
 
         try {
-          // Render the accumulated response. This works whether the provider
-          // emits delta chunks or cumulative chunks.
           await session.promptToText(
             'Explain scientific reproducibility in three concise points.',
             (_chunk, accumulated) => { output.textContent = accumulated; },
+            { signal: promptController.signal },
           );
         } catch (error) {
-          output.textContent = error instanceof Error ? error.message : String(error);
+          if (isAbortError(error)) {
+            status.textContent = 'Prompt stopped.';
+          } else {
+            output.textContent = error instanceof Error ? error.message : String(error);
+          }
         } finally {
-          promptButton.disabled = false;
+          promptController = null;
+          promptButton.disabled = !session;
+          stopButton.disabled = true;
         }
       });
+
+      stopButton.addEventListener('click', () => {
+        promptController?.abort();
+      });
+
+      window.addEventListener('pagehide', () => {
+        promptController?.abort();
+        session?.destroy?.();
+      }, { once: true });
     }
 
     if (document.readyState === 'loading') {
