@@ -1,0 +1,46 @@
+# ~/.inputrc
+# GNU Readline Configuration
+
+# ==============================================================================
+# GENERAL OPTIONS
+# ==============================================================================
+
+# Enable case-insensitive auto-completion
+set completion-ignore-case on
+
+# Treat hyphens and underscores as equivalent when completing
+set completion-map-case on
+
+# Immediately list all completions if there are multiple matches (no double TAB)
+set show-all-if-ambiguous on
+
+# Append '/' to completed symlinked directories
+set mark-symlinked-directories on
+
+# Show extra file information (like ls -F) during tab completion
+set visible-stats on
+
+# Do not ring bell or flash screen on errors
+set bell-style none
+
+# Display options in colored text during completion
+set colored-stats on
+
+# ==============================================================================
+# KEYBINDINGS (Emacs Mode Defaults)
+# ==============================================================================
+
+# Search command history using up/down arrow keys based on what's currently typed
+"\e[A": history-search-backward
+"\e[B": history-search-forward
+
+# Ctrl + Left/Right Arrow to move word-by-word
+"\e[1;5C": forward-word
+"\e[1;5D": backward-word
+
+# Alt + Left/Right Arrow (macOS Terminal / iTerm2 compatibility)
+"\e[1;3C": forward-word
+"\e[1;3D": backward-word
+
+# Cycle through completion choices with Shift+Tab
+"\e[Z": menu-complete-backward
