@@ -11,6 +11,9 @@ const MAX_PARTS_PER_MESSAGE = 32;
 const MAX_TEXT_LENGTH = 20_000;
 const MAX_MEDIA_BASE64_LENGTH = 12_000_000;
 const MAX_TOTAL_MEDIA_BASE64_LENGTH = 24_000_000;
+// Keep the raw body bounded before JSON parsing. The aggregate Base64 limit leaves
+// room for JSON framing, roles, text, and MIME metadata.
+const MAX_REQUEST_BYTES = 26_000_000;
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
 
 function jsonError(message: string, status: number) { return Response.json({ error: message }, { status }); }
@@ -58,8 +61,25 @@ function toModelMessages(messages: unknown[]) {
 
 export async function POST(req: NextRequest) {
   if (!process.env.GEMINI_API_KEY) return jsonError('GEMINI_API_KEY is not configured.', 503);
+
+  const declaredLength = req.headers.get('content-length');
+  if (declaredLength && Number.isFinite(Number(declaredLength)) && Number(declaredLength) > MAX_REQUEST_BYTES) {
+    return jsonError('Request body exceeds the maximum allowed size.', 413);
+  }
+
   let body: unknown;
-  try { body = await req.json(); } catch { return jsonError('Request body must be valid JSON.', 400); }
+  try {
+    // Parse the bounded request text rather than calling req.json() directly. This
+    // also protects chunked requests where Content-Length is unavailable.
+    const rawBody = await req.text();
+    const bodyBytes = new TextEncoder().encode(rawBody).byteLength;
+    if (bodyBytes > MAX_REQUEST_BYTES) return jsonError('Request body exceeds the maximum allowed size.', 413);
+    body = JSON.parse(rawBody);
+  } catch (error) {
+    if (error instanceof SyntaxError) return jsonError('Request body must be valid JSON.', 400);
+    return jsonError('Request body exceeds the maximum allowed size.', 413);
+  }
+
   const messages = isRecord(body) ? body.messages : undefined;
   if (!Array.isArray(messages) || messages.length === 0) return jsonError('Messages array is required.', 400);
   if (messages.length > MAX_MESSAGES) return jsonError(`A maximum of ${MAX_MESSAGES} messages is allowed.`, 413);
