@@ -93,7 +93,7 @@
 
     try {
       session = await createSmartSession({
-        fallbackEndpoint: '/api/chat-fallback',
+        fallbackEndpoint: '/api/chat',
         onStatus({ state, source }) {
           if (source) setProvider(source);
           if (state === 'downloading') {
