@@ -16,6 +16,7 @@ I build production-ready LLM-driven applications, developer tooling, and open-so
 - 👯 Open to: collaboration on AI tooling, Web3 integrations, and full‑stack product work  
 - ⚡ Fun fact: I love turning research prototypes into delightful UIs and clean APIs
 
+![aura_hub_diagram_dark.png](aura_hub_diagram_dark.svg)
 ---
 
 ## Tech & tools
