@@ -1,4 +1,5 @@
 # Hi, I’m Seriki Yakub 👋
+
 > Mastermind behind Web4application — building AI-first web apps, developer tools, and experiments that push the bounds of conversational and generative UX.
 
 [![GitHub followers](https://img.shields.io/github/followers/Web4application?label=Follow&style=for-the-badge)](https://github.com/Web4application)
