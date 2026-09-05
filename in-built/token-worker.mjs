@@ -1,7 +1,7 @@
 import { Tiktoken } from 'js-tiktoken/lite';
-import { getCachedRanks, setCachedRanks } from './idb-storage.mjs';
+import { getValidCachedRanks, setVersionedCachedRanks } from './versioned-idb.mjs';
 
-const CACHE_KEY = 'cl100k_base:v1';
+const MODEL_KEY = 'cl100k_base';
 let encoder = null;
 let encoderPromise = null;
 
@@ -9,16 +9,17 @@ async function getWorkerEncoder() {
   if (encoder) return encoder;
   if (!encoderPromise) {
     encoderPromise = (async () => {
-      const cachedRanks = await getCachedRanks(CACHE_KEY);
+      const cachedRanks = await getValidCachedRanks(MODEL_KEY);
       if (cachedRanks) return new Tiktoken(cachedRanks);
 
       const ranks = await import(
         /* webpackChunkName: "tiktoken-cl100k-ranks-worker" */
         /* webpackMode: "lazy" */
+        /* webpackPrefetch: true */
         'js-tiktoken/ranks/cl100k_base'
       );
       const rankData = ranks.default;
-      await setCachedRanks(CACHE_KEY, rankData);
+      await setVersionedCachedRanks(MODEL_KEY, rankData);
       return new Tiktoken(rankData);
     })().then((value) => {
       encoder = value;
