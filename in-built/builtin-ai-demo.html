@@ -14,7 +14,7 @@
 </head>
 <body>
   <h1>Scientists AI</h1>
-  <p id="status">The app will use Chrome Built-in AI when available, otherwise the cloud fallback.</p>
+  <p id="status">The app will use Chrome Built-in AI when available, otherwise WebLLM or the cloud fallback.</p>
   <progress id="progress" max="1" value="0" hidden></progress>
   <button id="create">Initialize AI</button>
   <button id="prompt" disabled>Ask scientist</button>
@@ -23,68 +23,136 @@
   <script type="module">
     import { createSmartSession } from './builtin-ai.mjs';
 
-    const createButton = document.querySelector('#create');
-    const promptButton = document.querySelector('#prompt');
-    const progress = document.querySelector('#progress');
-    const status = document.querySelector('#status');
-    const output = document.querySelector('#output');
-    let session = null;
+    function init() {
+      const createButton = document.querySelector('#create');
+      const promptButton = document.querySelector('#prompt');
+      const progress = document.querySelector('#progress');
+      const status = document.querySelector('#status');
+      const output = document.querySelector('#output');
 
-    createButton.addEventListener('click', async () => {
-      createButton.disabled = true;
-      promptButton.disabled = true;
-      output.textContent = '';
-      progress.hidden = false;
-      progress.value = 0;
-      progress.setAttribute('aria-label', 'Downloading local AI model');
-
-      try {
-        session = await createSmartSession({
-          fallbackEndpoint: '/api/chat-fallback',
-          onStatus({ state, source, availability }) {
-            if (source === 'cloud') {
-              status.textContent = 'Chrome Built-in AI unavailable; using cloud fallback.';
-            } else if (state === 'downloading') {
-              status.textContent = 'Downloading local AI model…';
-            } else if (state === 'ready') {
-              status.textContent = `Local model ready (${availability}).`;
-            }
-          },
-          onProgress({ loaded, extracting }) {
-            if (extracting) {
-              // Chrome has finished downloading, but create() may still be
-              // extracting/loading the model. Use indeterminate progress.
-              progress.removeAttribute('value');
-              status.textContent = 'Download complete; extracting and loading model into memory…';
-            } else {
-              progress.value = loaded;
-              status.textContent = `Downloading local model: ${Math.round(loaded * 100)}%`;
-            }
-          },
-        });
-        promptButton.disabled = false;
-        progress.hidden = true;
-      } catch (error) {
-        status.textContent = error instanceof Error ? error.message : String(error);
-        createButton.disabled = false;
-        progress.hidden = true;
+      if (!createButton || !promptButton || !progress || !status || !output) {
+        console.error('Scientists AI demo: required DOM elements are missing.');
+        return;
       }
-    });
 
-    promptButton.addEventListener('click', async () => {
-      promptButton.disabled = true;
-      output.textContent = '';
-      try {
-        await session.promptToText(
-          'Explain scientific reproducibility in three concise points.',
-          (chunk) => { output.append(chunk); },
-        );
-      } catch (error) {
-        output.textContent = error instanceof Error ? error.message : String(error);
-      } finally {
-        promptButton.disabled = false;
-      }
-    });
+      let session = null;
+      let sessionCreationTriggered = false;
+
+      const hideProgress = () => {
+        progress.hidden = true;
+        progress.value = 0;
+        progress.setAttribute('aria-label', 'AI model loading progress');
+      };
+
+      const showDownloadProgress = () => {
+        progress.hidden = false;
+        progress.value = 0;
+        progress.setAttribute('aria-label', 'Downloading local AI model');
+      };
+
+      const createSession = async (options = {}) => {
+        if (sessionCreationTriggered) return undefined;
+
+        sessionCreationTriggered = true;
+        showDownloadProgress();
+
+        try {
+          session = await createSmartSession({
+            options,
+            fallbackEndpoint: '/api/chat-fallback',
+            onStatus({ state, source, availability }) {
+              if (source === 'cloud') {
+                status.textContent = 'Chrome Built-in AI/WebLLM unavailable; using cloud fallback.';
+                hideProgress();
+              } else if (source === 'webllm' && state === 'downloading') {
+                status.textContent = 'Loading WebLLM model in your browser…';
+                showDownloadProgress();
+              } else if (state === 'downloading') {
+                status.textContent = 'Downloading local AI model…';
+                showDownloadProgress();
+              } else if (state === 'ready') {
+                status.textContent = source === 'webllm'
+                  ? `WebLLM model ready (${availability ?? 'WebGPU'}).`
+                  : `Local model ready (${availability ?? 'available'}).`;
+                hideProgress();
+              }
+            },
+            onProgress({ loaded, extracting, source }) {
+              progress.hidden = false;
+              if (extracting) {
+                progress.removeAttribute('value');
+                status.textContent = source === 'webllm'
+                  ? 'Model downloaded; initializing WebGPU engine…'
+                  : 'Download complete; extracting and loading model into memory…';
+              } else {
+                progress.max = 1;
+                progress.value = loaded;
+                status.textContent = source === 'webllm'
+                  ? `Loading WebLLM model: ${Math.round(loaded * 100)}%`
+                  : `Downloading local model: ${Math.round(loaded * 100)}%`;
+              }
+            },
+          });
+
+          return session;
+        } catch (error) {
+          session = null;
+          throw error;
+        } finally {
+          // Always clear the guard so a failed initialization can be retried.
+          sessionCreationTriggered = false;
+        }
+      };
+
+      createButton.addEventListener('click', async () => {
+        if (sessionCreationTriggered) return;
+
+        createButton.disabled = true;
+        promptButton.disabled = true;
+        output.textContent = '';
+
+        try {
+          const options = {
+            expectedInputs: [{ type: 'text', languages: ['en'] }],
+            expectedOutputs: [{ type: 'text', languages: ['en'] }],
+          };
+
+          const created = await createSession(options);
+          if (!created) throw new Error('AI session creation is already in progress.');
+          promptButton.disabled = false;
+        } catch (error) {
+          status.textContent = error instanceof Error ? error.message : String(error);
+          createButton.disabled = false;
+          hideProgress();
+        }
+      });
+
+      promptButton.addEventListener('click', async () => {
+        if (!session) return;
+
+        promptButton.disabled = true;
+        output.textContent = '';
+
+        try {
+          // Render the accumulated response. This works whether the provider
+          // emits delta chunks or cumulative chunks.
+          await session.promptToText(
+            'Explain scientific reproducibility in three concise points.',
+            (_chunk, accumulated) => { output.textContent = accumulated; },
+          );
+        } catch (error) {
+          output.textContent = error instanceof Error ? error.message : String(error);
+        } finally {
+          promptButton.disabled = false;
+        }
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init, { once: true });
+    } else {
+      init();
+    }
   </script>
 </body>
 </html>
