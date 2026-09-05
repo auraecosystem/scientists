@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Wasm and Mpy App</title>
+    
+    <!-- Load the PyScript framework infrastructure -->
+    <link rel="stylesheet" href="https://pyscript.net" />
+    <script type="module" src="https://pyscript.net"></script>
+    
+    <!-- Link directly to your custom .pyscript configuration profile -->
+    <config src="./config.pyscript"></config>
+</head>
+<body style="font-family: sans-serif; text-align: center; padding: 50px;">
+
+    <h1>WebAssembly & MicroPython Binary Execution</h1>
+    
+    <button py-click="greet_user" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">
+        Run .mpy Binary Code
+    </button>
+    
+    <h3 id="display" style="margin-top: 20px; color: #0073e6;">Waiting for click...</h3>
+
+</body>
+</html>
