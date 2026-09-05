@@ -111,7 +111,8 @@ def create_element(tag: str, text: str | None = None, **attributes: Any) -> Elem
         element.text = text
     for name, value in attributes.items():
         if name == "classes":
-            element.add_class(*value if not isinstance(value, str) else value.split())
+            class_names = value.split() if isinstance(value, str) else list(value)
+            element.add_class(*class_names)
         elif name == "style":
             element.set_style(**value)
         elif name.startswith("on_"):
