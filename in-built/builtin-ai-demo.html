@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Scientists — Chrome Built-in AI</title>
+  <title>Scientists — Built-in AI with fallback</title>
   <style>
     body { font: 16px system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; }
     button { padding: 10px 14px; margin-right: 8px; }
@@ -13,15 +13,15 @@
   </style>
 </head>
 <body>
-  <h1>Scientists local AI</h1>
-  <p id="status">Local model is not initialized.</p>
+  <h1>Scientists AI</h1>
+  <p id="status">The app will use Chrome Built-in AI when available, otherwise the cloud fallback.</p>
   <progress id="progress" max="1" value="0" hidden></progress>
-  <button id="create">Load local model</button>
+  <button id="create">Initialize AI</button>
   <button id="prompt" disabled>Ask scientist</button>
   <output id="output" aria-live="polite"></output>
 
   <script type="module">
-    import { createLocalSession, promptToText } from './builtin-ai.mjs';
+    import { createSmartSession } from './builtin-ai.mjs';
 
     const createButton = document.querySelector('#create');
     const promptButton = document.querySelector('#prompt');
@@ -32,22 +32,34 @@
 
     createButton.addEventListener('click', async () => {
       createButton.disabled = true;
+      promptButton.disabled = true;
       output.textContent = '';
       progress.hidden = false;
       progress.value = 0;
+      progress.setAttribute('aria-label', 'Downloading local AI model');
 
       try {
-        session = await createLocalSession({
-          onStatus({ state, availability }) {
-            status.textContent = state === 'ready'
-              ? `Local model ready (${availability}).`
-              : 'Downloading local AI model…';
+        session = await createSmartSession({
+          fallbackEndpoint: '/api/chat-fallback',
+          onStatus({ state, source, availability }) {
+            if (source === 'cloud') {
+              status.textContent = 'Chrome Built-in AI unavailable; using cloud fallback.';
+            } else if (state === 'downloading') {
+              status.textContent = 'Downloading local AI model…';
+            } else if (state === 'ready') {
+              status.textContent = `Local model ready (${availability}).`;
+            }
           },
           onProgress({ loaded, extracting }) {
-            progress.value = loaded;
-            status.textContent = extracting
-              ? 'Download complete; extracting and loading model into memory…'
-              : `Downloading local model: ${Math.round(loaded * 100)}%`;
+            if (extracting) {
+              // Chrome has finished downloading, but create() may still be
+              // extracting/loading the model. Use indeterminate progress.
+              progress.removeAttribute('value');
+              status.textContent = 'Download complete; extracting and loading model into memory…';
+            } else {
+              progress.value = loaded;
+              status.textContent = `Downloading local model: ${Math.round(loaded * 100)}%`;
+            }
           },
         });
         promptButton.disabled = false;
@@ -63,8 +75,7 @@
       promptButton.disabled = true;
       output.textContent = '';
       try {
-        await promptToText(
-          session,
+        await session.promptToText(
           'Explain scientific reproducibility in three concise points.',
           (chunk) => { output.append(chunk); },
         );
