@@ -20,6 +20,10 @@ export function isWebLLMSupported(globalObject = globalThis) {
   return Boolean(globalObject.navigator?.gpu);
 }
 
+export function isAbortError(error) {
+  return error?.name === 'AbortError';
+}
+
 export async function getAvailability(options = DEFAULT_LANGUAGE_OPTIONS, globalObject = globalThis) {
   if (!isSupported(globalObject)) return 'unsupported';
   return globalObject.LanguageModel.availability(options);
@@ -34,6 +38,9 @@ export async function createLocalSession({
 } = {}) {
   if (!isSupported(globalObject)) {
     throw new Error('Chrome Built-in AI is not supported in this browser.');
+  }
+  if (signal?.aborted) {
+    throw new DOMException('The model initialization was aborted.', 'AbortError');
   }
 
   const availability = await getAvailability(options, globalObject);
@@ -62,6 +69,10 @@ export async function createLocalSession({
   };
 
   const session = await globalObject.LanguageModel.create(createOptions);
+  if (signal?.aborted) {
+    session.destroy?.();
+    throw new DOMException('The model initialization was aborted.', 'AbortError');
+  }
   onStatus({ state: 'ready', source: 'native', availability });
   return session;
 }
@@ -125,6 +136,7 @@ async function* streamFallbackResponse(response) {
 /** WebLLM adapter. The package is loaded only when this provider is selected. */
 export async function createWebLLMSession({
   model = DEFAULT_WEBLLM_MODEL,
+  signal,
   onProgress = () => {},
   onStatus = () => {},
   globalObject = globalThis,
@@ -132,6 +144,9 @@ export async function createWebLLMSession({
 } = {}) {
   if (!isWebLLMSupported(globalObject)) {
     throw new Error('WebGPU is not supported in this browser.');
+  }
+  if (signal?.aborted) {
+    throw new DOMException('The WebLLM initialization was aborted.', 'AbortError');
   }
 
   const webllm = webllmModule ?? await import('@mlc-ai/web-llm');
@@ -152,11 +167,19 @@ export async function createWebLLMSession({
     },
   });
 
+  if (signal?.aborted) {
+    await engine.unload?.();
+    throw new DOMException('The WebLLM initialization was aborted.', 'AbortError');
+  }
   onStatus({ state: 'ready', source: 'webllm', model });
   return engine;
 }
 
 async function* streamWebLLM(engine, prompt, options = {}) {
+  if (options.signal?.aborted) {
+    throw new DOMException('The prompt was aborted.', 'AbortError');
+  }
+
   const stream = await engine.chat.completions.create({
     messages: [{ role: 'user', content: prompt }],
     stream: true,
@@ -209,6 +232,7 @@ export class SmartLanguageSession {
           return new SmartLanguageSession(nativeSession, fallbackEndpoint, fetchImpl);
         }
       } catch (error) {
+        if (isAbortError(error)) throw error;
         console.warn('Native LanguageModel initialization failed; trying fallback.', error);
       }
     }
@@ -217,6 +241,7 @@ export class SmartLanguageSession {
       try {
         const webllmSession = await createWebLLMSession({
           model: webllmModel,
+          signal,
           onProgress,
           onStatus,
           globalObject,
@@ -224,10 +249,14 @@ export class SmartLanguageSession {
         });
         return new SmartLanguageSession(null, fallbackEndpoint, fetchImpl, webllmSession);
       } catch (error) {
+        if (isAbortError(error)) throw error;
         console.warn('WebLLM initialization failed; using server fallback.', error);
       }
     }
 
+    if (signal?.aborted) {
+      throw new DOMException('The AI provider initialization was aborted.', 'AbortError');
+    }
     if (typeof fetchImpl !== 'function') {
       throw new Error('No AI provider is available in this environment.');
     }
@@ -328,6 +357,7 @@ export function createHybridRunner({ localSession, cloudPrompt }) {
       try {
         return await localSession.promptToText(prompt, onChunk, options);
       } catch (error) {
+        if (isAbortError(error)) throw error;
         console.warn('Local AI failed; using cloud fallback.', error);
       }
     }
