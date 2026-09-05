@@ -38,6 +38,41 @@ The server model defaults to `gemini-2.5-flash` and can be changed with `GEMINI_
 
 Streaming is preserved for both contracts: AI SDK `/chat` consumers receive the UI message stream, while the raw runtime fallback receives a UTF-8 text stream from `/api/chat`.
 
+## Application routes
+
+- `/` — self-contained project landing page.
+- `/demo` — internal demo entry point; it stays inside the application and forwards to `/chat`.
+- `/chat` — interactive AI SDK chat UI.
+- `/api/chat` — streaming Gemini fallback endpoint.
+- `/api/health` — deployment/runtime health endpoint. It reports whether the server-side Gemini key is configured without exposing the key.
+
+## Deployment
+
+The project includes `vercel.json` for a Next.js deployment. The deployment needs one server-side environment variable:
+
+```text
+GEMINI_API_KEY=your-server-side-key
+```
+
+Optionally set:
+
+```text
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Never commit `.env`, `.env.local`, or any real API key. The repository `.gitignore` excludes local secrets and build artifacts.
+
+After deployment, verify the application locally or through its assigned deployment hostname with these internal paths:
+
+```text
+/
+/demo
+/chat
+/api/health
+```
+
+`/api/health` should return `ok: true`. `configured` should be `true` only when the server environment contains `GEMINI_API_KEY`.
+
 ## Quick start
 
 ```bash
