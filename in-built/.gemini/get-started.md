@@ -298,3 +298,158 @@ experimenting, we want to hear from you.
 
 - [Join the early preview program](https://developer.chrome.com/docs/ai/join-epp) for an early look at new APIs and access to our mailing list.
 - Discover all of the [built-in AI APIs](https://developer.chrome.com/docs/ai/built-in-apis), which use foundation and other expert models in the browser.
+
+
+
+
+<br />
+
+
+Published: May 20, 2025
+
+<br />
+
+[Video](https://www.youtube.com/watch?v=GSVe6zguiao)
+
+At Google I/O 2025, we unveiled new features to supercharge your productivity
+and to empower you to build a more powerful, seamless, and modern web.
+
+Here are 10 key innovations that put cutting-edge capabilities directly in your
+hands and are sure to inspire your next project.
+
+## 1. Carousels are easier than ever to build with a few lines of CSS and HTML
+
+Build beautiful carousels with CSS that are interactive at first paint. Chrome
+135 introduced new CSS primitives---styleable fragmentation, scroll marker
+elements, and scroll buttons---simplifying carousel creation without JavaScript.
+Use familiar CSS concepts to create rich, interactive, smooth, and more
+accessible carousels, in a fraction of the time.
+Pinterest, an early adopter of CSS carousel, saw a 90% reduction in code, cutting down from around 2,000 lines of JavaScript to around 200 lines of CSS.
+
+## 2. Declarative Popovers: Introducing the new Interest Invoker API
+
+The experimental Interest Invoker API is available as an
+[origin trial](https://developer.chrome.com/origintrials#/register_trial/813462682693795841).
+With this feature, you can declaratively toggle popovers when visitor interest
+is active for a small duration. Goodbye unstylable
+`[title]` attribute; hello
+`[interesttarget]`! Combine it with the
+[Anchor Positioning API](https://developer.chrome.com/blog/anchor-positioning-api) and
+[Popover API](https://developer.chrome.com/blog/introducing-popover-api)
+to create
+rich, responsive, and interactive UI elements like tooltips or hover cards,
+without JavaScript. The possibilities are endless with modern CSS!
+With carousels, Anchor Positioning API, Popover API, and Interest Invoker API, we created a robust cinema experience at our Developer Keynote.
+
+## 3. Several built-in AI APIs using leading foundation models are available, now featuring multimodal capabilities in the Prompt API
+
+Our [built-in AI](https://developer.chrome.com/docs/ai/built-in) journey
+continues, bringing you enhanced privacy, reduced latency, and lowered cost,
+along with access to high-quality, AI-created output. Built-in AI uses expert
+models and Gemini Nano, Google's most efficient model, for on-device tasks.
+From Chrome 138, the [Summarizer API](https://developer.chrome.com/docs/ai/summarizer-api),
+[Language Detector API](https://developer.chrome.com/docs/ai/language-detection),
+[Translator API](https://developer.chrome.com/docs/ai/language-detection), and the
+[Prompt API](https://developer.chrome.com/docs/extensions/ai/prompt-api) for Chrome
+Extensions are available in Stable. In addition, the Writer API and Rewriter
+API are available in origin trials.
+
+The new Proofreader API, along with the Prompt API with multimodal
+capabilities, are available in Chrome Canary.
+
+For the latest information, join our [early preview program](https://developer.chrome.com/docs/ai/join-epp)
+to collaborate on new built-in AI APIs and shape the future of AI on the web.
+The Deloitte Engineering Platform experimented with the Prompt, Summarizer, Writer, and Rewriter APIs to create a personalized onboarding experience and a faster method of providing feedback, leading to a projected 30% quicker information retrieval. \[\^1\] Adobe experimented with the Prompt API with multimodal capabilities in their Acrobat Chrome Extension, enabling users to instantly generate summaries from scanned PDFs and validate critical information faster with Acrobat AI Assistant - all directly in Chrome.
+
+## 4. Client-side AI extends with Firebase and Gemini Developer API to provide a hybrid AI solution
+
+Our collaboration with
+[Firebase](https://firebase.google.com/) and Gemini Developer API means you can now
+[build AI-driven web experiences on mobile and desktop](https://developer.chrome.com/docs/ai/firebase-ai-logic).
+These applications use
+client-side AI when possible and seamlessly scale to server-side AI to reach
+all devices and browsers. Starting today,
+[Firebase AI Logic](https://firebase.google.com/products/firebase-ai-logic)
+provides seamless access to Chrome's built-in Prompt API backed by Gemini Nano
+and similar smaller models on the server side using the Gemini Developer API.
+
+## 5. AI assistance in Chrome DevTools supports your debugging workflow across styling, performance, and more
+
+With [AI assistance](https://developer.chrome.com/docs/devtools/ai-assistance),
+you can chat with Gemini to help you debug styling errors in the Elements
+panel, resolve performance problems in the Performance panel, identify network
+issues in the Network panel, and locate source files in the Sources panel.
+Plus, AI assistance can now apply its styling-related changes directly to your
+source code in the Elements panel.
+[Video](https://www.youtube.com/watch?v=zjVDTOVV-aU) Check out our latest video to see the newest features we've added to Chrome DevTools.
+
+## 6. Real-user data, Lighthouse Insights, and AI features in the Chrome DevTools Performance panel helps you understand and fix performance issues
+
+With the reimagined Performance panel, you can now [access local and real-user
+Core Web Vitals data](https://developer.chrome.com/blog/devtools-realtime-cwv)
+and [ask Gemini](https://developer.chrome.com/docs/devtools/ai-assistance/performance)
+to help you understand and fix performance issues. The
+[Insights sidebar brings Lighthouse insights into your traces](https://developer.chrome.com/blog/devtools-insights-sidebar)
+helping you debug faster---all without having to leave your workflow or disrupt your productivity.
+
+## 7. Baseline features availability is now in your familiar tools: VS Code, ESLint, and more
+
+Achieve greater accuracy and confidence in your web development workflow with
+Baseline integration. Within your familiar web development tools, you will
+gain clear visibility into the availability of web features across major
+browsers:
+
+- IDEs: [VSCode](https://web.dev/blog/baseline-vscode) now displays the Baseline status of features right as you build, with support coming soon to WebStorm by JetBrains and VS Code-based IDEs including Firebase Studio, Windsurf, GitHub Codespaces, and more.
+- Linters: CSS and HTML linters can proactively warn you when you're using a feature that is newer than your Baseline target. Baseline is supported in [ESLint for CSS](https://github.com/eslint/css), [HTML
+  ESLint](https://github.com/yeonjuan/html-eslint), and [Stylelint](https://github.com/ryo-manba/stylelint-plugin-use-baseline).
+- Analytics: [RUMvision](https://web.dev/blog/baseline-rum) combines Baseline data with real user metrics, letting you strategically select the optimal Baseline version for your audience. Google Analytics users can upload their data to [the Google Analytics Baseline
+  Checker](https://chrome.dev/google-analytics-baseline-checker/) to get Baseline recommendations.
+- Compilers: use [browserslist-config-baseline](https://github.com/web-platform-dx/browserslist-config-baseline) to plug your Baseline targets into your code compilation tools like Babel and PostCSS so that you can use modern features in your source code, and compile them down in your production builds.
+
+## 8. Gain a complete view of web feature support with Web Platform Dashboard
+
+Last year we announced the
+[Web Platform Dashboard](https://webstatus.dev/), a
+way to explore the
+[web-features data](https://github.com/web-platform-dx/web-features/)
+that maps the entire
+web platform as a set of features. With the web-features dataset now 100%
+mapped, for the first time ever, you can see the Baseline status of every
+feature on every browser---from AVIF to View Transitions---including their
+availability and adoption. Stay informed and build with confidence!
+
+## 9. Developer trial for a streamlined sign-in experience with Credential Manager
+
+We recognize the friction that multiple authentication methods, including
+passwords, identity federation, and passkeys can cause for users of your
+sites. Our goal is to bring a unified and effortless sign-in experience for
+users, and so we're bringing the intuitive experience of Android's Credential
+Manager to Chrome. Soon, when users click **sign in** Chrome will surface
+credentials which are available for this site, such as passkeys and passwords
+from Google Password Manager, making sign in seamless. We plan to add identity
+federation to this experience too. The Credential Manager for the web is now
+in [developer trial](http://goo.gle/io25-web-identity); stay tuned for more
+updates later this year.
+
+## 10. Iterate on Chrome Extensions faster with the ability to cancel submission review
+
+Submitting your Chrome Extension should feel seamless, worry-free, and exciting!
+However, we know that one area of friction was being unable to quickly fix a
+mistake in a pending submission. Earlier this year, we introduced the ability to
+[cancel a pending submission](https://developer.chrome.com/blog/chrome-webstore-cancel-review),
+which builds on the ability to
+[roll back a previously published version](https://developer.chrome.com/blog/chrome-webstore-rollback)---all with
+the goal of letting you make changes and resubmit quickly.
+
+For all the latest information, visit
+[developer.chrome.com](https://developer.chrome.com/) and
+[web.dev](https://web.dev/) to learn more about how we're making a powerful web,
+made easier. And be sure to connect with us on
+[X](https://twitter.com/ChromiumDev),
+[YouTube](https://www.youtube.com/user/ChromeDevelopers), and
+[LinkedIn](https://www.linkedin.com/showcase/chrome-for-developers/).
+See you at the next I/O!
+
+*** ** * ** ***
+
+Deloitte refers to one or more of Deloitte Touche Tohmatsu Limited, a UK private company limited by guarantee ("DTTL"), its network of member firms, and their related entities. DTTL and each of its member firms are legally separate and independent entities. DTTL (also referred to as "Deloitte Global") does not provide services to clients. In the United States, Deloitte refers to one or more of the US member firms of DTTL, their related entities that operate using the "Deloitte" name in the United States and their respective affiliates. Certain services may not be available to attest clients under the rules and regulations of public accounting. Please see www.deloitte.com/about to learn more about our global network of member firms.What 
