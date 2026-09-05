@@ -1,11 +1,4 @@
-![Thomas Steiner](https://web.dev/images/authors/thomassteiner.jpg) Thomas Steiner [GitHub](https://github.com/tomayac) [LinkedIn](https://www.linkedin.com/in/thomassteinerlinkedin) [Mastodon](https://toot.cafe/@tomayac) [Bluesky](https://bsky.app/profile/tomayac.com) [Homepage](https://blog.tomayac.com/) ![Alexandra Klepper](https://web.dev/images/authors/alexandraklepper.jpg) Alexandra Klepper [GitHub](https://github.com/alexandrascript) [Bluesky](https://bsky.app/profile/alexandrascript.com)
-
-<br />
-
-
-Published: May 20, 2025, Last updated: August 26, 2026
-
-<br />
+>
 
 | Explainer | Web | Extensions | Chrome Status | Intent |
 |---|---|---|---|---|
