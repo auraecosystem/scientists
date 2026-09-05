@@ -67,9 +67,11 @@ JavaScript • TypeScript • Node.js • React • Next.js • Python • PyTor
 ---
 
 ## Get in touch
-- Website: https://web4app.io  
-- GitHub: https://github.com/Web4application  
-- Twitter/X: https://twitter.com/Web4application  
+- Website: https://web4.io  
+- GitHub: https://github.com/Web4application
+- https://github.com/auraecosystem
+- https://github.com/qubuhub  
+- Twitter/X: https://twitter.com/web4app  
 - Email: kubulee.kl@gmail.com (replace with preferred contact)  
 - LinkedIn: (add your LinkedIn URL here)
 
