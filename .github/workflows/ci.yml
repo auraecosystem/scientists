@@ -16,6 +16,13 @@ jobs:
         with:
           python-version: "3.12.13"
           enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
       - run: uv sync --extra dev
       - run: uv run pytest
       - run: uv run mypy scientists
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:runtime
+      - run: npm run build
