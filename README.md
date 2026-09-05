@@ -2,7 +2,41 @@
 
 A deterministic scientific knowledge and agent runtime for Aura.
 
-The runtime has four layers: `core` data models, `knowledge` retrieval, `agents` execution, and `runtime` orchestration/verification. It is dependency-light so the scientific execution contract can be tested before model providers or external services are introduced.
+The runtime has four layers: `core` data models, `knowledge` retrieval, `agents` execution, and `runtime` orchestration/verification. The browser layer adds a model-agnostic multimodal session without coupling the Python runtime to a specific provider.
+
+## Universal multimodal hybrid AI
+
+`in-built/builtin-ai.mjs` exposes `SmartLanguageSession` as the unified browser contract. Provider selection is deterministic:
+
+1. Chrome Built-in AI `LanguageModel` is preferred when the required capabilities are available. Native text, image, and audio inputs are passed directly to the browser session.
+2. WebLLM/WebGPU is the local text-only fallback when native Built-in AI is unavailable or initialization fails.
+3. `/api/chat` is the server-side fallback for unsupported browsers and multimodal requests that cannot be handled by WebLLM.
+
+The client normalizes text and multimodal message arrays and can serialize `HTMLCanvasElement`, `HTMLImageElement`, `Blob`, `AudioBuffer`, `ArrayBuffer`, and typed-array media into JSON-safe Base64 for the HTTP path. Native sessions retain native media objects rather than performing unnecessary serialization.
+
+## Context management
+
+Native sessions expose `contextUsage`, `contextWindow`, `contextUsageRatio`, `measureContextUsage()`, and `contextoverflow` handling when supported by the browser.
+
+Fallback requests use two controls: a turn-based sliding window and a local token-budget window. System prompts are preserved while older conversational turns are evicted. Token counting runs through `TokenService`, which prefers a Web Worker and falls back to the main thread. The tokenizer uses lazy-loaded `js-tiktoken/lite` rank assets and treats its counts as a structural budget proxy; native browser context metrics remain authoritative for native sessions.
+
+## Offline cache and cache invalidation
+
+Tokenizer rank assets are versioned from their content hashes during `npm run prebuild`. IndexedDB accepts a cached rank dictionary only when its manifest hash matches the current build. The Service Worker uses the same combined hash for its CacheStorage namespace and removes older tokenizer cache generations during activation.
+
+The cache path is therefore:
+
+`TokenService → Web Worker → versioned IndexedDB → lazy rank asset → main-thread fallback`
+
+Idle prefetch and bundler chunk hints are retained so the tokenizer does not block the first interactive render unnecessarily.
+
+## Server fallback
+
+`app/api/chat/route.ts` is a Node.js Next.js Route Handler. It accepts the normalized runtime message format as well as the existing AI SDK UI message stream format. It validates message count, multimodal part count, text size, media MIME types, Base64 syntax, aggregate media size, and raw request size before invoking the configured Gemini model through the server-side AI SDK integration.
+
+The server model defaults to `gemini-2.5-flash` and can be changed with `GEMINI_MODEL`. The server requires `GEMINI_API_KEY`; credentials are never placed in browser code.
+
+Streaming is preserved for both contracts: AI SDK `/chat` consumers receive the UI message stream, while the raw runtime fallback receives a UTF-8 text stream from `/api/chat`.
 
 ## Quick start
 
@@ -14,22 +48,12 @@ python scripts/verify.py
 python -m scientists.runtime.cli 'research reproducibility' --json
 ```
 
-The runtime retrieves matching knowledge records, executes a research agent, retains evidence identifiers, and verifies that a non-empty result was produced.
+For the browser layer:
 
-## Chrome Built-in AI and graceful fallback
-
-The browser layer in `in-built/builtin-ai.mjs` integrates Chrome's Prompt API (`LanguageModel`) without coupling the Python runtime to a browser. It performs feature detection, checks capability/availability, passes identical input/output modality options to `availability()` and `create()`, exposes model download progress, reports the post-download extraction/loading phase, and streams prompt output.
-
-`SmartLanguageSession` provides one `promptStreaming()` contract for both native and fallback execution. If `LanguageModel` is missing, reports `unavailable`, or fails during initialization, the session automatically routes prompts to the host application's fallback HTTP endpoint. The default endpoint is `/api/chat-fallback`; applications can provide another endpoint with `fallbackEndpoint`.
-
-The fallback endpoint receives:
-
-```json
-{ "prompt": "..." }
+```bash
+npm install
+npm run build
+node --test tests/test-builtin-ai.mjs
 ```
 
-and should return a successful HTTP response whose body is a UTF-8 text stream. Credentials and provider-specific API calls belong on the server, where the endpoint can wrap OpenAI, Gemini, Claude, or another provider. No cloud credentials are embedded in this repository.
-
-A runnable browser example is available at `in-built/builtin-ai-demo.html`. It automatically selects the native model when available and otherwise reports that it is using the cloud fallback. During local model download it displays progress; after `loaded === 1`, it switches the progress indicator to an indeterminate extraction/loading state until the native session is ready.
-
-The lower-level `createHybridRunner()` remains available for applications that already have a local session and want to inject their own `cloudPrompt` function. `SmartLanguageSession` is the recommended entry point when feature detection and fallback selection should be handled automatically.
+The browser runtime is self-contained. It does not require user-facing external documentation links, redirects, CDN-hosted runtime assets, or provider-specific credentials in the client.
