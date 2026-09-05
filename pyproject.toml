@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aura-scientists"
+version = "0.1.0"
+description = "Deterministic scientific knowledge and agent runtime for Aura."
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9", "mypy>=1.20,<3"]
+
+[project.scripts]
+scientists = "scientists.runtime.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["scientists"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["."]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["scientists"]
