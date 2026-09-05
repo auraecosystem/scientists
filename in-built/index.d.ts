@@ -1,6 +1,8 @@
 // Scientists local AI runtime declarations. No external runtime navigation is required.
 
 export type Availability = "unavailable" | "downloadable" | "downloading" | "available";
+export type LanguageModelSamplingMode = "most-predictable" | "predictable" | "slightly-predictable" | "balanced" | "slightly-creative" | "creative" | "most-creative";
+export type LanguageModelSamplingOptions = { samplingMode?: LanguageModelSamplingMode; topK?: number; temperature?: number };
 
 export interface CreateMonitorEventMap { downloadprogress: ProgressEvent; }
 export interface CreateMonitor extends EventTarget {
@@ -11,8 +13,6 @@ export interface CreateMonitor extends EventTarget {
 }
 export type CreateMonitorCallback = (monitor: CreateMonitor) => void;
 
-export type LanguageModelSamplingMode = "most-predictable" | "predictable" | "slightly-predictable" | "balanced" | "slightly-creative" | "creative" | "most-creative";
-export type LanguageModelSamplingOptions = { samplingMode?: LanguageModelSamplingMode; topK?: number; temperature?: number };
 export type LanguageModelCreateCoreOptions = { expectedInputs?: LanguageModelExpected[]; expectedOutputs?: LanguageModelExpected[]; tools?: LanguageModelTool[]; systemPrompt?: string } & LanguageModelSamplingOptions;
 export type LanguageModelCreateOptions = LanguageModelCreateCoreOptions & { signal?: AbortSignal; monitor?: CreateMonitorCallback; initialPrompts?: LanguageModelMessage[] };
 export interface LanguageModelPromptOptions { responseConstraint?: Record<string, unknown>; omitResponseConstraintInput?: boolean; signal?: AbortSignal; }
@@ -20,6 +20,12 @@ export interface LanguageModelAppendOptions { signal?: AbortSignal; }
 export interface LanguageModelCloneOptions { signal?: AbortSignal; }
 export interface LanguageModelExpected { type: LanguageModelMessageType; languages?: string[]; }
 export interface LanguageModelTool { name: string; description: string; inputSchema: object; execute: (...args: any[]) => Promise<string>; }
+
+export type MediaInput = Blob | HTMLCanvasElement | HTMLImageElement | AudioBuffer | ArrayBuffer | ArrayBufferView;
+export interface MultimodalPart { type: "text" | "image" | "audio"; value?: string | MediaInput; base64Data?: string; mimeType?: string; }
+export interface MultimodalMessage { role: "user" | "assistant" | "system"; content: string | MultimodalPart[]; }
+export type MultimodalPrompt = string | MultimodalPart[] | MultimodalMessage[];
+
 export type LanguageModelPrompt = string | (LanguageModelMessage | LanguageModelAssistantMessage)[];
 export interface LanguageModelMessage { role: "user" | "assistant" | "system"; content: LanguageModelMessageContent[] | string; }
 export interface LanguageModelAssistantMessage extends LanguageModelMessage { role: "assistant"; prefix?: boolean; }
@@ -43,7 +49,6 @@ export declare class LanguageModel extends EventTarget {
 }
 
 export interface LanguageModelParams { readonly defaultTopK: number; readonly maxTopK: number; readonly defaultTemperature: number; readonly maxTemperature: number; }
-
 export interface SmartSessionStatus { state: string; source: "native" | "webllm" | "cloud"; availability?: string; model?: string; }
 export interface SmartSessionProgress { loaded: number; complete: boolean; extracting: boolean; source: "native" | "webllm"; }
 export interface SmartSessionCreateOptions {
@@ -60,21 +65,25 @@ export interface SmartSessionCreateOptions {
 }
 export interface SmartPromptOptions extends LanguageModelPromptOptions {}
 
-export declare class SmartLanguageSession extends EventTarget {
+export declare class SmartLanguageSession {
+  constructor(nativeSession?: LanguageModel | null, apiEndpoint?: string, fetchImpl?: typeof fetch, webllmSession?: any);
   static create(options?: SmartSessionCreateOptions): Promise<SmartLanguageSession>;
   readonly source: "native" | "webllm" | "cloud";
   readonly contextUsage: number | undefined;
   readonly contextWindow: number | undefined;
   readonly contextUsageRatio: number | undefined;
-  promptStreaming(prompt: LanguageModelPrompt, options?: SmartPromptOptions): AsyncGenerator<string>;
-  promptToText(prompt: LanguageModelPrompt, onChunk?: (chunk: string, accumulated: string) => void, options?: SmartPromptOptions): Promise<string>;
+  promptStreaming(prompt: MultimodalPrompt, options?: SmartPromptOptions): AsyncGenerator<string>;
+  promptToText(prompt: MultimodalPrompt, onChunk?: (chunk: string, accumulated: string) => void, options?: SmartPromptOptions): Promise<string>;
   append(messages: LanguageModelPrompt, options?: LanguageModelAppendOptions): Promise<void>;
   clone(options?: LanguageModelCloneOptions): Promise<SmartLanguageSession>;
   measureContextUsage(input: LanguageModelPrompt, options?: SmartPromptOptions): Promise<number>;
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): any;
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): any;
   destroy(): Promise<void>;
 }
 
 export declare const DEFAULT_LANGUAGE_OPTIONS: Readonly<LanguageModelCreateCoreOptions>;
+export declare const MULTIMODAL_LANGUAGE_OPTIONS: Readonly<LanguageModelCreateCoreOptions>;
 export declare const DEFAULT_WEBLLM_MODEL: string;
 export declare function isSupported(globalObject?: any): boolean;
 export declare function isWebLLMSupported(globalObject?: any): boolean;
@@ -86,6 +95,8 @@ export declare function createSmartSession(options?: SmartSessionCreateOptions):
 export declare function promptStreaming(session: LanguageModel, prompt: LanguageModelPrompt, options?: SmartPromptOptions): Promise<ReadableStream<string>>;
 export declare function promptToText(session: LanguageModel, prompt: LanguageModelPrompt, onChunk?: (chunk: string, accumulated: string) => void, options?: SmartPromptOptions): Promise<string>;
 export declare function normalizeStream(stream: AsyncIterable<string>): AsyncGenerator<string>;
+export declare function mediaPartToBase64(part: MultimodalPart): Promise<MultimodalPart>;
+export declare function serializeMultimodalMessages(input: MultimodalPrompt): Promise<MultimodalMessage[]>;
 export declare function createHybridRunner(options: { localSession?: SmartLanguageSession | null; cloudPrompt: (prompt: string) => Promise<string> }): (prompt: string, options?: { preferLocal?: boolean; onChunk?: (chunk: string, accumulated: string) => void; options?: SmartPromptOptions }) => Promise<string>;
 
 declare global { interface Window { ai?: { languageModel: typeof LanguageModel }; } }
