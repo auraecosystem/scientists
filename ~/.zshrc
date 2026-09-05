@@ -32,3 +32,5 @@ zle -N down-line-or-beginning-search
 
 bindkey '^[[A' up-line-or-beginning-search
 bindkey '^[[B' down-line-or-beginning-search
+# Remove characters like '/' and '.' from word boundaries so navigation stops at path separators
+WORDCHARS='*?_-.[]~=&;!#$%^(){}<>'
