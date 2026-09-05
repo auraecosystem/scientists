@@ -1,9 +1,8 @@
 /**
- * Chrome Built-in AI adapter for Scientists.
+ * Scientists browser AI runtime.
  *
- * Provides one browser-facing session contract. Chrome's native
- * LanguageModel is preferred when available; otherwise prompts are streamed
- * from a host-provided HTTP endpoint without changing the UI contract.
+ * Provider order: Chrome Built-in AI -> WebLLM/WebGPU -> server fallback.
+ * Every provider exposes the same async promptStreaming contract.
  */
 
 export const DEFAULT_LANGUAGE_OPTIONS = Object.freeze({
@@ -11,8 +10,14 @@ export const DEFAULT_LANGUAGE_OPTIONS = Object.freeze({
   expectedOutputs: [{ type: 'text', languages: ['en'] }],
 });
 
+export const DEFAULT_WEBLLM_MODEL = 'Llama-3.2-3B-Instruct-q4f16_1-MLC';
+
 export function isSupported(globalObject = globalThis) {
   return 'LanguageModel' in globalObject;
+}
+
+export function isWebLLMSupported(globalObject = globalThis) {
+  return Boolean(globalObject.navigator?.gpu);
 }
 
 export async function getAvailability(options = DEFAULT_LANGUAGE_OPTIONS, globalObject = globalThis) {
@@ -66,14 +71,9 @@ export async function promptStreaming(session, prompt) {
   return session.promptStreaming(prompt);
 }
 
-export async function promptToText(session, prompt, onChunk = () => {}) {
-  const stream = await promptStreaming(session, prompt);
-  let output = '';
-  for await (const chunk of stream) {
-    output += chunk;
-    onChunk(chunk, output);
-  }
-  return output;
+async function* streamNative(session, prompt) {
+  const stream = await session.promptStreaming(prompt);
+  for await (const chunk of stream) yield chunk;
 }
 
 async function* streamFallbackResponse(response) {
@@ -95,15 +95,61 @@ async function* streamFallbackResponse(response) {
   if (tail) yield tail;
 }
 
+/** WebLLM adapter. The package is loaded only when this provider is selected. */
+export async function createWebLLMSession({
+  model = DEFAULT_WEBLLM_MODEL,
+  onProgress = () => {},
+  onStatus = () => {},
+  globalObject = globalThis,
+  webllmModule = null,
+} = {}) {
+  if (!isWebLLMSupported(globalObject)) {
+    throw new Error('WebGPU is not supported in this browser.');
+  }
+
+  const webllm = webllmModule ?? await import('@mlc-ai/web-llm');
+  onStatus({ state: 'downloading', source: 'webllm', model });
+
+  const engine = await webllm.CreateMLCEngine(model, {
+    initProgressCallback(progress) {
+      const value = typeof progress === 'object' && progress !== null
+        ? Number(progress.progress)
+        : Number(progress);
+      onProgress({
+        loaded: Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0,
+        complete: value >= 1,
+        extracting: value >= 1,
+        source: 'webllm',
+      });
+    },
+  });
+
+  onStatus({ state: 'ready', source: 'webllm', model });
+  return engine;
+}
+
+async function* streamWebLLM(engine, prompt) {
+  const stream = await engine.chat.completions.create({
+    messages: [{ role: 'user', content: prompt }],
+    stream: true,
+  });
+
+  for await (const chunk of stream) {
+    const text = chunk?.choices?.[0]?.delta?.content;
+    if (typeof text === 'string' && text) yield text;
+  }
+}
+
 /**
- * Unified native/cloud session. The cloud endpoint is intentionally supplied
- * by the host application so credentials and provider choice stay server-side.
+ * Unified browser session. Native is preferred, then WebLLM/WebGPU, then HTTP.
  */
 export class SmartLanguageSession {
-  constructor(nativeSession = null, apiEndpoint = '/api/chat-fallback', fetchImpl = globalThis.fetch) {
+  constructor(nativeSession = null, apiEndpoint = '/api/chat-fallback', fetchImpl = globalThis.fetch, webllmSession = null) {
     this.nativeSession = nativeSession;
     this.apiEndpoint = apiEndpoint;
     this.fetchImpl = fetchImpl;
+    this.webllmSession = webllmSession;
+    this.source = nativeSession ? 'native' : webllmSession ? 'webllm' : 'cloud';
   }
 
   static async create({
@@ -113,27 +159,40 @@ export class SmartLanguageSession {
     onStatus = () => {},
     globalObject = globalThis,
     fetchImpl = globalObject.fetch?.bind(globalObject),
+    preferWebLLM = true,
+    webllmModel = DEFAULT_WEBLLM_MODEL,
+    webllmModule = null,
   } = {}) {
     if (isSupported(globalObject)) {
       try {
         const availability = await getAvailability(options, globalObject);
         if (availability !== 'unavailable') {
-          const nativeSession = await createLocalSession({
-            options,
-            onProgress,
-            onStatus,
-            globalObject,
-          });
+          const nativeSession = await createLocalSession({ options, onProgress, onStatus, globalObject });
           onStatus({ state: 'ready', source: 'native', availability });
           return new SmartLanguageSession(nativeSession, fallbackEndpoint, fetchImpl);
         }
       } catch (error) {
-        console.warn('Native LanguageModel initialization failed; using fallback.', error);
+        console.warn('Native LanguageModel initialization failed; trying fallback.', error);
+      }
+    }
+
+    if (preferWebLLM && isWebLLMSupported(globalObject)) {
+      try {
+        const webllmSession = await createWebLLMSession({
+          model: webllmModel,
+          onProgress,
+          onStatus,
+          globalObject,
+          webllmModule,
+        });
+        return new SmartLanguageSession(null, fallbackEndpoint, fetchImpl, webllmSession);
+      } catch (error) {
+        console.warn('WebLLM initialization failed; using server fallback.', error);
       }
     }
 
     if (typeof fetchImpl !== 'function') {
-      throw new Error('No cloud fallback is available in this environment.');
+      throw new Error('No AI provider is available in this environment.');
     }
 
     onStatus({ state: 'ready', source: 'cloud', availability: 'fallback' });
@@ -146,8 +205,12 @@ export class SmartLanguageSession {
     }
 
     if (this.nativeSession) {
-      const stream = await this.nativeSession.promptStreaming(prompt);
-      for await (const chunk of stream) yield chunk;
+      yield* streamNative(this.nativeSession, prompt);
+      return;
+    }
+
+    if (this.webllmSession) {
+      yield* streamWebLLM(this.webllmSession, prompt);
       return;
     }
 
@@ -173,8 +236,11 @@ export class SmartLanguageSession {
     return output;
   }
 
-  destroy() {
+  async destroy() {
     this.nativeSession?.destroy?.();
+    if (typeof this.webllmSession?.unload === 'function') {
+      await this.webllmSession.unload();
+    }
   }
 }
 
@@ -188,9 +254,9 @@ export function createHybridRunner({ localSession, cloudPrompt }) {
   return async function run(prompt, { preferLocal = true, onChunk = () => {} } = {}) {
     if (preferLocal && localSession) {
       try {
-        return await promptToText(localSession, prompt, onChunk);
+        return await localSession.promptToText(prompt, onChunk);
       } catch (error) {
-        console.warn('Local Built-in AI failed; using cloud fallback.', error);
+        console.warn('Local AI failed; using cloud fallback.', error);
       }
     }
     const result = await cloudPrompt(prompt);
