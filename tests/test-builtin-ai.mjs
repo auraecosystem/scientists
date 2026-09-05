@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import {
+  DEFAULT_WEBLLM_MODEL,
   SmartLanguageSession,
   createLocalSession,
   createSmartSession,
+  createWebLLMSession,
   getAvailability,
   isSupported,
+  isWebLLMSupported,
   promptToText,
 } from '../in-built/builtin-ai.mjs';
 
@@ -52,6 +55,7 @@ assert.equal(await promptToText(session, 'test'), 'Answer: test');
 
 const unsupported = { fetch: async () => { throw new Error('fetch should not run'); } };
 assert.equal(isSupported(unsupported), false);
+assert.equal(isWebLLMSupported(unsupported), false);
 let fallbackStatus = null;
 const cloud = await createSmartSession({
   globalObject: unsupported,
@@ -69,6 +73,7 @@ const cloud = await createSmartSession({
 });
 assert.ok(cloud instanceof SmartLanguageSession);
 assert.equal(cloud.nativeSession, null);
+assert.equal(cloud.webllmSession, null);
 assert.equal(fallbackStatus.source, 'cloud');
 assert.equal(await cloud.promptToText('hello'), 'cloud answer');
 
@@ -77,6 +82,7 @@ const nativeSmart = await createSmartSession({
   fetchImpl: async () => { throw new Error('native should be preferred'); },
 });
 assert.ok(nativeSmart.nativeSession);
+assert.equal(nativeSmart.source, 'native');
 assert.equal(await nativeSmart.promptToText('native'), 'Answer: native');
 
 const failingNative = {
@@ -84,12 +90,57 @@ const failingNative = {
     async availability() { return 'available'; },
     async create() { throw new Error('native initialization failed'); },
   },
+  navigator: {},
 };
 const recovered = await createSmartSession({
   globalObject: failingNative,
+  preferWebLLM: false,
   fetchImpl: async () => new Response('recovered cloud answer', { status: 200 }),
 });
 assert.equal(recovered.nativeSession, null);
 assert.equal(await recovered.promptToText('recover'), 'recovered cloud answer');
+
+let webllmProgress = null;
+const fakeWebGPU = { navigator: { gpu: {} } };
+const fakeEngine = {
+  chat: {
+    completions: {
+      async *create({ messages, stream }) {
+        assert.equal(messages[0].content, 'webllm');
+        assert.equal(stream, true);
+        yield { choices: [{ delta: { content: 'local ' } }] };
+        yield { choices: [{ delta: { content: 'answer' } }] };
+      },
+    },
+  },
+  async unload() {},
+};
+const webllm = await createWebLLMSession({
+  globalObject: fakeWebGPU,
+  model: DEFAULT_WEBLLM_MODEL,
+  webllmModule: {
+    async CreateMLCEngine(model, options) {
+      assert.equal(model, DEFAULT_WEBLLM_MODEL);
+      options.initProgressCallback({ progress: 0.5 });
+      options.initProgressCallback({ progress: 1 });
+      return fakeEngine;
+    },
+  },
+  onProgress: (progress) => { webllmProgress = progress; },
+});
+assert.equal(webllmProgress.complete, true);
+assert.equal(await new SmartLanguageSession(null, '/unused', null, webllm).promptToText('webllm'), 'local answer');
+
+const webllmSelected = await createSmartSession({
+  globalObject: fakeWebGPU,
+  preferWebLLM: true,
+  fetchImpl: async () => { throw new Error('cloud should not run'); },
+  webllmModule: {
+    async CreateMLCEngine() { return fakeEngine; },
+  },
+});
+assert.equal(webllmSelected.source, 'webllm');
+assert.equal(await webllmSelected.promptToText('webllm'), 'local answer');
+await webllmSelected.destroy();
 
 console.log('builtin-ai verification: PASS');
