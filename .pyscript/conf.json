@@ -1,0 +1,6 @@
+{
+    "interpreter": "micropython",
+    "files": {
+        "./main.mpy": "./main.mpy"
+    }
+}
