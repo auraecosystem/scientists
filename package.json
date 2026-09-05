@@ -1,0 +1,30 @@
+{
+  "name": "scientists-web-runtime",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "prebuild": "node scripts/generate-rank-manifest.mjs",
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start",
+    "test:runtime": "tsx --test tests/test-builtin-ai.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "latest",
+    "@ai-sdk/react": "latest",
+    "@mlc-ai/web-llm": "latest",
+    "ai": "latest",
+    "js-tiktoken": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "typescript": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "tsx": "latest"
+  }
+}
