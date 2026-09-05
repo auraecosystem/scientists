@@ -81,10 +81,19 @@ export async function promptStreaming(session, prompt, options = {}) {
   if (!session || typeof session.promptStreaming !== 'function') {
     throw new TypeError('A valid LanguageModel session is required.');
   }
-  if (typeof prompt !== 'string' || !prompt.trim()) {
-    throw new TypeError('Prompt must be a non-empty string.');
+  if ((typeof prompt !== 'string' || !prompt.trim()) && !Array.isArray(prompt)) {
+    throw new TypeError('Prompt must be non-empty text or a valid multimodal message array.');
   }
   return session.promptStreaming(prompt, options);
+}
+
+export async function promptToText(session, prompt, onChunk = () => {}, options = {}) {
+  let output = '';
+  for await (const chunk of normalizeStream(streamNative(session, prompt, options))) {
+    output += chunk;
+    onChunk(chunk, output);
+  }
+  return output;
 }
 
 async function* streamNative(session, prompt, options) {
@@ -93,8 +102,8 @@ async function* streamNative(session, prompt, options) {
 }
 
 /**
- * Normalize Chrome implementations that may emit either cumulative or delta
- * chunks. Consumers always receive delta chunks from this generator.
+ * Normalize implementations that may emit either cumulative or delta chunks.
+ * Consumers always receive delta chunks from this generator.
  */
 export async function* normalizeStream(stream) {
   let accumulated = '';
@@ -194,9 +203,6 @@ async function* streamWebLLM(engine, prompt, options = {}) {
   }
 }
 
-/**
- * Unified browser session. Native is preferred, then WebLLM/WebGPU, then HTTP.
- */
 export class SmartLanguageSession {
   constructor(nativeSession = null, apiEndpoint = '/api/chat-fallback', fetchImpl = globalThis.fetch, webllmSession = null) {
     this.nativeSession = nativeSession;
@@ -266,8 +272,8 @@ export class SmartLanguageSession {
   }
 
   async *promptStreaming(prompt, options = {}) {
-    if (typeof prompt !== 'string' || !prompt.trim()) {
-      throw new TypeError('Prompt must be a non-empty string.');
+    if ((typeof prompt !== 'string' || !prompt.trim()) && !Array.isArray(prompt)) {
+      throw new TypeError('Prompt must be non-empty text or a valid multimodal message array.');
     }
 
     if (this.nativeSession) {
@@ -276,10 +282,16 @@ export class SmartLanguageSession {
     }
 
     if (this.webllmSession) {
+      if (Array.isArray(prompt)) {
+        throw new Error('The WebLLM fallback currently accepts text prompts only.');
+      }
       yield* streamWebLLM(this.webllmSession, prompt, options);
       return;
     }
 
+    if (Array.isArray(prompt)) {
+      throw new Error('The server fallback currently accepts text prompts only.');
+    }
     if (options.signal?.aborted) {
       throw new DOMException('The prompt was aborted.', 'AbortError');
     }
@@ -307,11 +319,11 @@ export class SmartLanguageSession {
     return output;
   }
 
-  async append(messages) {
+  async append(messages, options = {}) {
     if (!this.nativeSession || typeof this.nativeSession.append !== 'function') {
       throw new Error('append() is only available for Chrome Built-in AI sessions.');
     }
-    return this.nativeSession.append(messages);
+    return this.nativeSession.append(messages, options);
   }
 
   async clone(options = {}) {
@@ -330,9 +342,27 @@ export class SmartLanguageSession {
     return this.nativeSession?.contextWindow;
   }
 
+  get contextUsageRatio() {
+    const usage = this.contextUsage;
+    const window = this.contextWindow;
+    return Number.isFinite(usage) && Number.isFinite(window) && window > 0 ? usage / window : undefined;
+  }
+
+  measureContextUsage(input, options = {}) {
+    if (!this.nativeSession?.measureContextUsage) {
+      throw new Error('measureContextUsage() is only available for Chrome Built-in AI sessions.');
+    }
+    return this.nativeSession.measureContextUsage(input, options);
+  }
+
   addEventListener(...args) {
     if (typeof this.nativeSession?.addEventListener !== 'function') return undefined;
     return this.nativeSession.addEventListener(...args);
+  }
+
+  removeEventListener(...args) {
+    if (typeof this.nativeSession?.removeEventListener !== 'function') return undefined;
+    return this.nativeSession.removeEventListener(...args);
   }
 
   async destroy() {
