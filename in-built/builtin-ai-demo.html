@@ -3,178 +3,180 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Scientists — Built-in AI with fallback</title>
+  <title>Scientists AI — Local Runtime Demo</title>
   <style>
-    body { font: 16px system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; }
-    button { padding: 10px 14px; margin-right: 8px; }
-    progress { width: 100%; margin: 16px 0 8px; }
-    #status { min-height: 1.5em; }
-    output { display: block; white-space: pre-wrap; border: 1px solid #ccc; padding: 16px; min-height: 120px; margin-top: 16px; }
+    :root { color-scheme: dark; }
+    body { margin: 0; min-height: 100vh; font: 16px system-ui, sans-serif; background: #0b1020; color: #eef2ff; }
+    main { width: min(820px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0; }
+    .card { background: #121a2d; border: 1px solid #263452; border-radius: 18px; padding: 24px; box-shadow: 0 20px 60px #0006; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 6vw, 44px); }
+    .muted { color: #aab5cf; }
+    .status { display: flex; justify-content: space-between; gap: 12px; margin: 22px 0 8px; }
+    progress { width: 100%; height: 12px; }
+    .buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    button { border: 0; border-radius: 10px; padding: 11px 16px; font: inherit; cursor: pointer; background: #6d7cff; color: white; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    output { display: block; white-space: pre-wrap; min-height: 180px; margin-top: 18px; padding: 18px; border-radius: 12px; background: #090e1a; border: 1px solid #263452; line-height: 1.65; }
+    .pill { padding: 4px 9px; border: 1px solid #33415f; border-radius: 999px; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+    .metric { padding: 12px; border-radius: 10px; background: #0d1425; border: 1px solid #263452; }
+    .metric strong { display: block; font-size: 13px; color: #9eabd0; margin-bottom: 5px; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-  <h1>Scientists AI</h1>
-  <p id="status">The app will use Chrome Built-in AI when available, otherwise WebLLM or the cloud fallback.</p>
-  <progress id="progress" max="1" value="0" hidden></progress>
-  <button id="create">Initialize AI</button>
-  <button id="prompt" disabled>Ask scientist</button>
-  <button id="stop" disabled>Stop</button>
-  <output id="output" aria-live="polite"></output>
+<main>
+  <section class="card">
+    <h1>Scientists AI</h1>
+    <p class="muted">A self-contained browser AI runtime. It tries the device-local model first, then browser WebGPU inference, then the project's own server endpoint.</p>
 
-  <script type="module">
-    import { createSmartSession, isAbortError } from './builtin-ai.mjs';
+    <div class="status">
+      <span id="status">Ready to initialize.</span>
+      <span id="provider" class="pill">provider: none</span>
+    </div>
+    <progress id="progress" max="1" value="0" hidden aria-label="AI model loading progress"></progress>
 
-    function init() {
-      const createButton = document.querySelector('#create');
-      const promptButton = document.querySelector('#prompt');
-      const stopButton = document.querySelector('#stop');
-      const progress = document.querySelector('#progress');
-      const status = document.querySelector('#status');
-      const output = document.querySelector('#output');
+    <div class="buttons">
+      <button id="create">Initialize AI</button>
+      <button id="prompt" disabled>Ask Scientist</button>
+      <button id="stop" disabled>Stop</button>
+      <button id="destroy" disabled>Destroy Session</button>
+    </div>
 
-      if (!createButton || !promptButton || !stopButton || !progress || !status || !output) {
-        console.error('Scientists AI demo: required DOM elements are missing.');
-        return;
-      }
+    <div class="grid">
+      <div class="metric"><strong>Context used</strong><span id="context">—</span></div>
+      <div class="metric"><strong>Context window</strong><span id="window">—</span></div>
+      <div class="metric"><strong>Mode</strong><span id="mode">—</span></div>
+    </div>
 
-      let session = null;
-      let sessionCreationTriggered = false;
-      let promptController = null;
+    <output id="output" aria-live="polite">The response will stream here.</output>
+  </section>
+</main>
 
-      const hideProgress = () => {
-        progress.hidden = true;
-        progress.value = 0;
-        progress.setAttribute('aria-label', 'AI model loading progress');
-      };
+<script type="module">
+  import { createSmartSession, isAbortError } from './builtin-ai.mjs';
 
-      const showDownloadProgress = () => {
-        progress.hidden = false;
-        progress.max = 1;
-        progress.value = 0;
-        progress.setAttribute('aria-label', 'Downloading local AI model');
-      };
+  const $ = (selector) => document.querySelector(selector);
+  const createButton = $('#create');
+  const promptButton = $('#prompt');
+  const stopButton = $('#stop');
+  const destroyButton = $('#destroy');
+  const progress = $('#progress');
+  const status = $('#status');
+  const provider = $('#provider');
+  const output = $('#output');
+  const context = $('#context');
+  const windowSize = $('#window');
+  const mode = $('#mode');
 
-      const createSession = async (options = {}) => {
-        if (sessionCreationTriggered) return undefined;
+  let session = null;
+  let creating = false;
+  let promptController = null;
 
-        sessionCreationTriggered = true;
-        showDownloadProgress();
+  function hideProgress() { progress.hidden = true; progress.value = 0; }
+  function showProgress() { progress.hidden = false; progress.removeAttribute('value'); }
+  function setProvider(source) { provider.textContent = `provider: ${source ?? 'none'}`; mode.textContent = source ?? '—'; }
+  function updateContext() {
+    context.textContent = Number.isFinite(session?.contextUsage) ? String(session.contextUsage) : '—';
+    windowSize.textContent = Number.isFinite(session?.contextWindow) ? String(session.contextWindow) : '—';
+  }
 
-        try {
-          session = await createSmartSession({
-            options,
-            fallbackEndpoint: '/api/chat-fallback',
-            onStatus({ state, source, availability }) {
-              if (source === 'cloud') {
-                status.textContent = 'Chrome Built-in AI/WebLLM unavailable; using cloud fallback.';
-                hideProgress();
-              } else if (source === 'webllm' && state === 'downloading') {
-                status.textContent = 'Loading WebLLM model in your browser…';
-                showDownloadProgress();
-              } else if (state === 'downloading') {
-                status.textContent = 'Downloading local AI model…';
-                showDownloadProgress();
-              } else if (state === 'ready') {
-                status.textContent = source === 'webllm'
-                  ? `WebLLM model ready (${availability ?? 'WebGPU'}).`
-                  : `Local model ready (${availability ?? 'available'}).`;
-                hideProgress();
-              }
-            },
-            onProgress({ loaded, extracting, source }) {
-              progress.hidden = false;
-              if (extracting) {
-                progress.removeAttribute('value');
-                status.textContent = source === 'webllm'
-                  ? 'Model downloaded; initializing WebGPU engine…'
-                  : 'Download complete; extracting and loading model into memory…';
-              } else {
-                progress.max = 1;
-                progress.value = loaded;
-                status.textContent = source === 'webllm'
-                  ? `Loading WebLLM model: ${Math.round(loaded * 100)}%`
-                  : `Downloading local model: ${Math.round(loaded * 100)}%`;
-              }
-            },
-          });
+  async function initialize() {
+    if (creating) return;
+    creating = true;
+    createButton.disabled = true;
+    promptButton.disabled = true;
+    destroyButton.disabled = true;
+    showProgress();
+    status.textContent = 'Checking local AI providers…';
+    output.textContent = '';
 
-          return session;
-        } catch (error) {
-          session = null;
-          throw error;
-        } finally {
-          // Always clear the guard so failed initialization can be retried.
-          sessionCreationTriggered = false;
-        }
-      };
-
-      createButton.addEventListener('click', async () => {
-        if (sessionCreationTriggered) return;
-
-        createButton.disabled = true;
-        promptButton.disabled = true;
-        stopButton.disabled = true;
-        output.textContent = '';
-
-        try {
-          const options = {
-            expectedInputs: [{ type: 'text', languages: ['en'] }],
-            expectedOutputs: [{ type: 'text', languages: ['en'] }],
-          };
-
-          const created = await createSession(options);
-          if (!created) throw new Error('AI session creation is already in progress.');
-          promptButton.disabled = false;
-          createButton.textContent = 'Reinitialize AI';
-        } catch (error) {
-          status.textContent = error instanceof Error ? error.message : String(error);
-          createButton.disabled = false;
-          hideProgress();
-        }
-      });
-
-      promptButton.addEventListener('click', async () => {
-        if (!session) return;
-
-        promptButton.disabled = true;
-        stopButton.disabled = false;
-        promptController = new AbortController();
-        output.textContent = '';
-
-        try {
-          await session.promptToText(
-            'Explain scientific reproducibility in three concise points.',
-            (_chunk, accumulated) => { output.textContent = accumulated; },
-            { signal: promptController.signal },
-          );
-        } catch (error) {
-          if (isAbortError(error)) {
-            status.textContent = 'Prompt stopped.';
-          } else {
-            output.textContent = error instanceof Error ? error.message : String(error);
+    try {
+      session = await createSmartSession({
+        fallbackEndpoint: '/api/chat-fallback',
+        onStatus({ state, source }) {
+          if (source) setProvider(source);
+          if (state === 'downloading') {
+            status.textContent = source === 'webllm' ? 'Loading browser-local WebGPU model…' : 'Downloading local model…';
+            progress.hidden = false;
+          } else if (state === 'ready') {
+            status.textContent = `AI ready — ${source}.`;
+            hideProgress();
           }
-        } finally {
-          promptController = null;
-          promptButton.disabled = !session;
-          stopButton.disabled = true;
-        }
+        },
+        onProgress({ loaded, extracting, source }) {
+          progress.hidden = false;
+          if (extracting) {
+            progress.removeAttribute('value');
+            status.textContent = source === 'webllm' ? 'Model ready; initializing WebGPU…' : 'Model downloaded; loading into memory…';
+          } else {
+            progress.max = 1;
+            progress.value = loaded;
+            status.textContent = `${source === 'webllm' ? 'Loading' : 'Downloading'} local model: ${Math.round(loaded * 100)}%`;
+          }
+        },
       });
-
-      stopButton.addEventListener('click', () => {
-        promptController?.abort();
-      });
-
-      window.addEventListener('pagehide', () => {
-        promptController?.abort();
-        session?.destroy?.();
-      }, { once: true });
+      updateContext();
+      promptButton.disabled = false;
+      destroyButton.disabled = false;
+      createButton.textContent = 'Reinitialize AI';
+    } catch (error) {
+      session = null;
+      status.textContent = error instanceof Error ? error.message : String(error);
+      setProvider('none');
+      hideProgress();
+    } finally {
+      creating = false;
+      createButton.disabled = false;
     }
+  }
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init, { once: true });
-    } else {
-      init();
+  async function ask() {
+    if (!session || promptController) return;
+    promptButton.disabled = true;
+    stopButton.disabled = false;
+    promptController = new AbortController();
+    output.textContent = '';
+    status.textContent = `Running ${session.source} inference…`;
+
+    try {
+      await session.promptToText(
+        'Explain scientific reproducibility in three concise points, and give one practical example.',
+        (_chunk, accumulated) => { output.textContent = accumulated; },
+        { signal: promptController.signal },
+      );
+      updateContext();
+      status.textContent = 'Response complete.';
+    } catch (error) {
+      if (isAbortError(error)) {
+        status.textContent = 'Response stopped.';
+      } else {
+        output.textContent = error instanceof Error ? error.message : String(error);
+        status.textContent = 'Inference failed.';
+      }
+    } finally {
+      promptController = null;
+      promptButton.disabled = !session;
+      stopButton.disabled = true;
     }
-  </script>
+  }
+
+  async function destroy() {
+    promptController?.abort();
+    await session?.destroy?.();
+    session = null;
+    setProvider('none');
+    updateContext();
+    status.textContent = 'Session destroyed; resources released.';
+    promptButton.disabled = true;
+    destroyButton.disabled = true;
+  }
+
+  createButton?.addEventListener('click', initialize);
+  promptButton?.addEventListener('click', ask);
+  stopButton?.addEventListener('click', () => promptController?.abort());
+  destroyButton?.addEventListener('click', destroy);
+  window.addEventListener('pagehide', () => { promptController?.abort(); session?.destroy?.(); }, { once: true });
+</script>
 </body>
 </html>
