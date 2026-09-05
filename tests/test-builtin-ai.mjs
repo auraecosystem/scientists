@@ -8,32 +8,49 @@ import {
   getAvailability,
   isSupported,
   isWebLLMSupported,
+  normalizeStream,
   promptToText,
 } from '../in-built/builtin-ai.mjs';
 
 function fakeGlobal() {
   const events = [];
+  let createOptions = null;
+  const session = {
+    async *promptStreaming(prompt, options) {
+      assert.equal(options.responseConstraint.type, 'object');
+      assert.equal(options.signal.aborted, false);
+      yield 'Answer:';
+      yield `Answer: ${prompt}`;
+    },
+    async append(messages) {
+      assert.equal(messages[0].role, 'user');
+    },
+    async clone() {
+      return { async *promptStreaming() { yield 'clone'; } };
+    },
+    destroy() { session.destroyed = true; },
+    destroyed: false,
+  };
+
   return {
     events,
+    get createOptions() { return createOptions; },
     LanguageModel: {
       async availability(options) {
         assert.deepEqual(options.expectedInputs, [{ type: 'text', languages: ['en'] }]);
         assert.deepEqual(options.expectedOutputs, [{ type: 'text', languages: ['en'] }]);
         return 'downloadable';
       },
-      async create({ monitor }) {
-        monitor({
+      async create(options) {
+        createOptions = options;
+        options.monitor({
           addEventListener(_name, callback) {
             events.push(callback);
           },
         });
         const callback = events[0];
         for (const loaded of [0.25, 1]) callback?.({ loaded });
-        return {
-          async *promptStreaming(prompt) {
-            yield `Answer: ${prompt}`;
-          },
-        };
+        return session;
       },
     },
   };
@@ -44,14 +61,21 @@ assert.equal(isSupported(fake), true);
 assert.equal(await getAvailability(undefined, fake), 'downloadable');
 
 let lastProgress = null;
-const session = await createLocalSession({
+const controller = new AbortController();
+const local = await createLocalSession({
   globalObject: fake,
+  signal: controller.signal,
   onProgress: (progress) => { lastProgress = progress; },
 });
 
+assert.equal(fake.createOptions.signal, controller.signal);
 assert.equal(lastProgress.complete, true);
 assert.equal(lastProgress.extracting, true);
-assert.equal(await promptToText(session, 'test'), 'Answer: test');
+assert.equal(await promptToText(local, 'test', undefined, {
+  responseConstraint: { type: 'object' },
+  signal: controller.signal,
+}), 'Answer: test');
+await local.append([{ role: 'user', content: 'context' }]);
 
 const unsupported = { fetch: async () => { throw new Error('fetch should not run'); } };
 assert.equal(isSupported(unsupported), false);
@@ -83,7 +107,7 @@ const nativeSmart = await createSmartSession({
 });
 assert.ok(nativeSmart.nativeSession);
 assert.equal(nativeSmart.source, 'native');
-assert.equal(await nativeSmart.promptToText('native'), 'Answer: native');
+assert.equal(await nativeSmart.promptToText('native', undefined, { responseConstraint: { type: 'object' } }), 'Answer: native');
 
 const failingNative = {
   LanguageModel: {
@@ -101,6 +125,7 @@ assert.equal(recovered.nativeSession, null);
 assert.equal(await recovered.promptToText('recover'), 'recovered cloud answer');
 
 let webllmProgress = null;
+let unloadCalled = false;
 const fakeWebGPU = { navigator: { gpu: {} } };
 const fakeEngine = {
   chat: {
@@ -113,7 +138,7 @@ const fakeEngine = {
       },
     },
   },
-  async unload() {},
+  async unload() { unloadCalled = true; },
 };
 const webllm = await createWebLLMSession({
   globalObject: fakeWebGPU,
@@ -142,5 +167,31 @@ const webllmSelected = await createSmartSession({
 assert.equal(webllmSelected.source, 'webllm');
 assert.equal(await webllmSelected.promptToText('webllm'), 'local answer');
 await webllmSelected.destroy();
+assert.equal(unloadCalled, true);
+
+const cumulative = await normalizeStream((async function* () {
+  yield 'A';
+  yield 'AB';
+  yield 'ABC';
+})());
+const normalized = [];
+for await (const chunk of cumulative) normalized.push(chunk);
+assert.deepEqual(normalized, ['A', 'B', 'C']);
+
+const delta = await normalizeStream((async function* () {
+  yield 'A';
+  yield 'B';
+  yield 'C';
+})());
+const normalizedDelta = [];
+for await (const chunk of delta) normalizedDelta.push(chunk);
+assert.deepEqual(normalizedDelta, ['A', 'B', 'C']);
+
+const cloneSource = new SmartLanguageSession(local);
+const clone = await cloneSource.clone();
+assert.equal(await clone.promptToText('ignored'), 'clone');
+cloneSource.addEventListener('contextoverflow', () => {});
+cloneSource.destroy();
+assert.equal(local.destroyed, true);
 
 console.log('builtin-ai verification: PASS');
