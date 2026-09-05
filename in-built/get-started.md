@@ -181,3 +181,120 @@ If you try built-in AI and have feedback, we'd love to hear it.
 - [Join the Early Preview Program](https://developer.chrome.com/docs/ai/join-epp) for an early look at new APIs and access to our mailing list.
 - If you have feedback on Chrome's implementation, file a [Chromium bug](https://issues.chromium.org/issues/new?component=1583300&priority=P2&type=bug&template=0&noWizard=true).
 - Learn about [web standards](https://www.w3.org/standards/about/).
+
+
+
+<br />
+
+
+Published: May 20, 2025
+
+<br />
+
+We have so many built-in AI API updates to announce at Google I/O 2025. Starting
+from Chrome 138, the [Summarizer API](https://developer.chrome.com/docs/ai/summarizer-api),
+[Language Detector API](https://developer.chrome.com/docs/ai/language-detection), and
+[Translator API](https://developer.chrome.com/docs/ai/translator-api) are available in stable, as is the
+[Prompt API for use in Chrome Extensions](https://developer.chrome.com/docs/extensions/ai/prompt-api).
+
+And we're not done innovating yet!
+
+- The [Writer and Rewriter APIs are in origin trials](https://developer.chrome.com/blog/ai-api-updates-io25#writer_rewriter_origin_trials).
+- The [Prompt API's multimodal capabilities](https://developer.chrome.com/blog/ai-api-updates-io25#prompt_api_multimodal) are available to Early Preview Program (EPP) participants.
+- The new [Proofreader API](https://developer.chrome.com/blog/ai-api-updates-io25#proofreader_epp) will soon be available for EPP Participants.
+
+Check out all of the [built-in AI API statuses](https://developer.chrome.com/docs/ai/built-in-apis) and
+[everything on the web that happened at Google I/O 2025](https://developer.chrome.com/blog/web-at-io25).
+
+## Writer and Rewriter APIs in origin trials
+
+| API | Explainer | Web | Extensions | Chrome Status | Intent |
+|---|---|---|---|---|---|
+| **[Writer API](https://developer.chrome.com/docs/ai/writer-api)** | [GitHub](https://github.com/explainers-by-googlers/writing-assistance-apis/) | ![Developer trial](https://developer.chrome.com/static/images/experiment.svg) Developer trial | ![Developer trial](https://developer.chrome.com/static/images/experiment.svg) Developer trial | [View](https://chromestatus.com/feature/4712595362414592) | [Intent to Experiment](https://groups.google.com/a/chromium.org/g/blink-dev/c/HCSzUSI8kI8/m/A3I4o5YlBAAJ) |
+| **[Rewriter API](https://developer.chrome.com/docs/ai/rewriter-api)** | [GitHub](https://github.com/explainers-by-googlers/writing-assistance-apis/) | ![Developer trial](https://developer.chrome.com/static/images/experiment.svg)Developer trial | ![Developer trial](https://developer.chrome.com/static/images/experiment.svg)Developer trial | [View](https://chromestatus.com/feature/5112320150470656) | [Intent to Experiment](https://groups.google.com/a/chromium.org/g/blink-dev/c/eLNXoxgx8CU/m/KHTF-pslBAAJ) |
+
+The [Writer API](https://developer.chrome.com/docs/ai/writer-api) and [Rewriter API](https://developer.chrome.com/docs/ai/rewriter-api)
+are now available in origin trials.
+
+For those new to [origin trials](https://developer.chrome.com/docs/web-platform/origin-trials), these are
+time-limited programs open to all developers, offering early access to
+experimental platform features. There may be temporary usage limits, however,
+developers can integrate these features for live testing and gathering user
+feedback, with the goal of informing a future launch.
+
+### Use cases
+
+With the [Writer API](https://developer.chrome.com/docs/ai/writer-api), you can help users write new
+content, based on an initial idea. For example:
+
+- Support users content creation, including reviews, blog posts, or emails.
+- Help users write better support requests.
+- Draft an introduction for a series of work samples to better capture certain skills.
+
+With the [Rewriter API](https://developer.chrome.com/docs/ai/rewriter-api), refine your users'
+existing text. For example:
+
+- Rewrite a short email so that it sounds more polite and formal.
+- Suggest edits to customer reviews to help other customers understand the feedback or remove toxicity.
+- Format content to meet the expectations of certain audiences.
+
+## Prompt API updated with multimodal capabilities for EPP
+
+The Prompt API with multimodal capabilities is available from Chrome 138
+for local experimentation to
+[Early Preview Program (EPP) participants](https://developer.chrome.com/docs/ai/join-epp). With this
+update, the Prompt API supports audio and images in the input, with a return of
+text output.
+
+### Use cases
+
+There are a number of reasons you may consider using multimodal capabilities:
+
+- Allow users to transcribe audio messages sent in a chat application.
+- Describe an image uploaded to your website for use in a caption or alt text.
+
+[Your feedback](https://developer.chrome.com/blog/ai-api-updates-io25#share_your_feedback) helps inform the future of this API and
+improvements to the model. It may even result in dedicated task APIs (such as
+APIs for audio transcription or image description), ensuring we meet your needs
+and the needs of your users.
+
+## Proofreader API in EPP
+
+| API | Explainer | Web | Extensions | Chrome Status | Intent |
+|---|---|---|---|---|---|
+| **Proofreader API** | [GitHub](https://github.com/explainers-by-googlers/proofreader-api) | ![Developer trial](https://developer.chrome.com/static/images/experiment.svg) Developer trial | ![Developer trial](https://developer.chrome.com/static/images/experiment.svg) Developer trial | [View](https://chromestatus.com/feature/5164677291835392) | [Intent to Experiment](https://groups.google.com/a/chromium.org/g/blink-dev/c/Gboyyec4qmg/m/_l6n39OKBAAJ) |
+
+The Proofreader API will be available from Chrome 139 Canary in for local
+experimentation [Early Preview Program participants](https://developer.chrome.com/docs/ai/join-epp). With
+this API, you can provide interactive proofreading for your users in your web
+application or extension.
+
+You will be able to decide what API functions you want to use and design how
+the output appears for your users:
+
+- **Correction**: Correct user inputs for grammar, spelling, and punctuation.
+- **Labels**: Label each correction by the error type.
+- **Explanation**: Defining what the error is or why the correction was necessary in plain language.
+
+We hope to receive your feedback to update how the Proofreader API works, the
+quality of the corrections, and general feedback on the API design. The API is
+subject to change, based on this feedback.
+
+### Use cases
+
+There are a number of possible use cases for the Proofreader API, including:
+
+- Correct a document the user is editing in their browser.
+- Help your customers send grammatically correct chat messages.
+- Edit comments on a blog post or forum.
+- Provide corrections in note taking applications.
+
+### Demo
+
+## Share your feedback
+
+All of these APIs are in active discussion and subject to change. When you start
+experimenting, we want to hear from you.
+
+- [Join the early preview program](https://developer.chrome.com/docs/ai/join-epp) for an early look at new APIs and access to our mailing list.
+- Discover all of the [built-in AI APIs](https://developer.chrome.com/docs/ai/built-in-apis), which use foundation and other expert models in the browser.
