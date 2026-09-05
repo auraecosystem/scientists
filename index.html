@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modular MicroPython WebAssembly App</title>
+    
+    <!-- Core PyScript framework styles and scripts -->
+    <link rel="stylesheet" href="https://pyscript.net" />
+    <script type="module" src="https://pyscript.net"></script>
+    
+    <!-- Link to our json configuration file -->
+    <config src="./pyscript.json"></config>
+</head>
+<body style="font-family: Arial, sans-serif; padding: 40px; max-width: 500px; margin: auto; text-align: center;">
+
+    <h2>⚡ MicroPython WebAssembly App</h2>
+    <p>Enter a number below to calculate its square inside the browser.</p>
+
+    <input type="number" id="number-input" placeholder="Type a number..." style="padding: 8px; font-size: 16px; width: 80%; margin-bottom: 10px;">
+    <br>
+    <!-- We bind the Python function directly using the py-click attribute -->
+    <button py-click="calculate_square" style="padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px;">Calculate</button>
+
+    <h3 id="result" style="margin-top: 25px; color: #333;">💡 Result: Waiting for input...</h3>
+
+</body>
+</html>
