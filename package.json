@@ -13,6 +13,7 @@
     "@ai-sdk/react": "latest",
     "@mlc-ai/web-llm": "latest",
     "ai": "latest",
+    "js-tiktoken": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
