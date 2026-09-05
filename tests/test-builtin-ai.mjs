@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   DEFAULT_WEBLLM_MODEL,
+  MULTIMODAL_LANGUAGE_OPTIONS,
   SmartLanguageSession,
   createLocalSession,
   createSmartSession,
@@ -9,8 +10,10 @@ import {
   isAbortError,
   isSupported,
   isWebLLMSupported,
+  mediaPartToBase64,
   normalizeStream,
   promptToText,
+  serializeMultimodalMessages,
 } from '../in-built/builtin-ai.mjs';
 
 function fakeGlobal() {
@@ -18,17 +21,19 @@ function fakeGlobal() {
   let createOptions = null;
   const session = {
     async *promptStreaming(prompt, options) {
-      assert.equal(options.responseConstraint.type, 'object');
-      assert.equal(options.signal.aborted, false);
-      yield 'Answer:';
-      yield `Answer: ${prompt}`;
+      if (typeof prompt === 'string') {
+        assert.equal(options.responseConstraint.type, 'object');
+        assert.equal(options.signal.aborted, false);
+        yield 'Answer:';
+        yield `Answer: ${prompt}`;
+      } else {
+        assert.equal(prompt[0].role, 'user');
+        assert.equal(prompt[0].content[0].type, 'image');
+        yield 'multimodal answer';
+      }
     },
-    async append(messages) {
-      assert.equal(messages[0].role, 'user');
-    },
-    async clone() {
-      return { async *promptStreaming() { yield 'clone'; } };
-    },
+    async append(messages) { assert.equal(messages[0].role, 'user'); },
+    async clone() { return { async *promptStreaming() { yield 'clone'; } }; },
     destroy() { session.destroyed = true; },
     destroyed: false,
   };
@@ -45,9 +50,7 @@ function fakeGlobal() {
       async create(options) {
         createOptions = options;
         options.monitor({
-          addEventListener(_name, callback) {
-            events.push(callback);
-          },
+          addEventListener(_name, callback) { events.push(callback); },
         });
         const callback = events[0];
         for (const loaded of [0.25, 1]) callback?.({ loaded });
@@ -78,6 +81,12 @@ assert.equal(await promptToText(local, 'test', undefined, {
 }), 'Answer: test');
 await local.append([{ role: 'user', content: 'context' }]);
 
+const nativeMultimodal = await promptToText(local, [{
+  role: 'user',
+  content: [{ type: 'image', value: 'already-normalized-string' }],
+}]);
+assert.equal(nativeMultimodal, 'multimodal answer');
+
 const aborted = new AbortController();
 aborted.abort();
 await assert.rejects(
@@ -85,21 +94,49 @@ await assert.rejects(
   (error) => isAbortError(error),
 );
 
+const imageBytes = new Uint8Array([1, 2, 3, 4]);
+const imagePart = await mediaPartToBase64({
+  type: 'image',
+  value: imageBytes.buffer,
+  mimeType: 'image/png',
+});
+assert.equal(imagePart.type, 'image');
+assert.equal(imagePart.mimeType, 'image/png');
+assert.equal(imagePart.base64Data, 'AQIDBA==');
+
+const audioBlob = new Blob([new Uint8Array([5, 6, 7])], { type: 'audio/wav' });
+const audioPart = await mediaPartToBase64({ type: 'audio', value: audioBlob });
+assert.equal(audioPart.type, 'audio');
+assert.equal(audioPart.mimeType, 'audio/wav');
+assert.equal(audioPart.base64Data, 'BQYH');
+
+const serialized = await serializeMultimodalMessages([
+  {
+    role: 'user',
+    content: [
+      { type: 'text', value: 'describe these' },
+      { type: 'image', value: imageBytes.buffer, mimeType: 'image/png' },
+      { type: 'audio', value: audioBlob },
+    ],
+  },
+]);
+assert.deepEqual(serialized[0].content[0], { type: 'text', value: 'describe these' });
+assert.equal(serialized[0].content[1].base64Data, 'AQIDBA==');
+assert.equal(serialized[0].content[2].base64Data, 'BQYH');
+
 const unsupported = { fetch: async () => { throw new Error('fetch should not run'); } };
 assert.equal(isSupported(unsupported), false);
 assert.equal(isWebLLMSupported(unsupported), false);
 let fallbackStatus = null;
 const cloud = await createSmartSession({
   globalObject: unsupported,
-  fallbackEndpoint: '/api/generate',
+  fallbackEndpoint: '/api/chat',
   fetchImpl: async (url, init) => {
-    assert.equal(url, '/api/generate');
+    assert.equal(url, '/api/chat');
     assert.equal(init.method, 'POST');
-    assert.deepEqual(JSON.parse(init.body), { prompt: 'hello' });
-    return new Response('cloud answer', {
-      status: 200,
-      headers: { 'Content-Type': 'text/plain' },
-    });
+    const body = JSON.parse(init.body);
+    assert.deepEqual(body, { messages: [{ role: 'user', content: 'hello' }] });
+    return new Response('cloud answer', { status: 200, headers: { 'Content-Type': 'text/plain' } });
   },
   onStatus: (status) => { fallbackStatus = status; },
 });
@@ -108,6 +145,29 @@ assert.equal(cloud.nativeSession, null);
 assert.equal(cloud.webllmSession, null);
 assert.equal(fallbackStatus.source, 'cloud');
 assert.equal(await cloud.promptToText('hello'), 'cloud answer');
+
+const fallbackMultimodal = await createSmartSession({
+  globalObject: unsupported,
+  fallbackEndpoint: '/api/chat',
+  fetchImpl: async (_url, init) => {
+    const body = JSON.parse(init.body);
+    assert.equal(body.messages[0].content[1].type, 'image');
+    assert.equal(body.messages[0].content[1].base64Data, 'AQIDBA==');
+    assert.equal(body.messages[0].content[2].mimeType, 'audio/wav');
+    assert.equal(body.messages[0].content[2].base64Data, 'BQYH');
+    return new Response('multimodal cloud answer', { status: 200 });
+  },
+});
+assert.equal(await fallbackMultimodal.promptToText([
+  {
+    role: 'user',
+    content: [
+      { type: 'text', value: 'describe' },
+      { type: 'image', value: imageBytes.buffer, mimeType: 'image/png' },
+      { type: 'audio', value: audioBlob },
+    ],
+  },
+]), 'multimodal cloud answer');
 
 const nativeSmart = await createSmartSession({
   globalObject: fake,
@@ -168,9 +228,7 @@ const webllmSelected = await createSmartSession({
   globalObject: fakeWebGPU,
   preferWebLLM: true,
   fetchImpl: async () => { throw new Error('cloud should not run'); },
-  webllmModule: {
-    async CreateMLCEngine() { return fakeEngine; },
-  },
+  webllmModule: { async CreateMLCEngine() { return fakeEngine; } },
 });
 assert.equal(webllmSelected.source, 'webllm');
 assert.equal(await webllmSelected.promptToText('webllm'), 'local answer');
@@ -194,6 +252,12 @@ const delta = await normalizeStream((async function* () {
 const normalizedDelta = [];
 for await (const chunk of delta) normalizedDelta.push(chunk);
 assert.deepEqual(normalizedDelta, ['A', 'B', 'C']);
+
+assert.deepEqual(MULTIMODAL_LANGUAGE_OPTIONS.expectedInputs, [
+  { type: 'text', languages: ['en'] },
+  { type: 'image' },
+  { type: 'audio' },
+]);
 
 const cloneSource = new SmartLanguageSession(local);
 const clone = await cloneSource.clone();
