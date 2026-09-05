@@ -6,6 +6,7 @@ import {
   createSmartSession,
   createWebLLMSession,
   getAvailability,
+  isAbortError,
   isSupported,
   isWebLLMSupported,
   normalizeStream,
@@ -76,6 +77,13 @@ assert.equal(await promptToText(local, 'test', undefined, {
   signal: controller.signal,
 }), 'Answer: test');
 await local.append([{ role: 'user', content: 'context' }]);
+
+const aborted = new AbortController();
+aborted.abort();
+await assert.rejects(
+  () => createLocalSession({ globalObject: fake, signal: aborted.signal }),
+  (error) => isAbortError(error),
+);
 
 const unsupported = { fetch: async () => { throw new Error('fetch should not run'); } };
 assert.equal(isSupported(unsupported), false);
