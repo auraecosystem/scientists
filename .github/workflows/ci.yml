@@ -15,7 +15,7 @@ jobs:
           enable-cache: true
       - uses: actions/setup-node@v4
         with:
-          node-version: "20.20.2"
+          node-version: "22"
       - run: uv sync --extra dev
       - run: uv run pytest
       - run: uv run mypy scientists
