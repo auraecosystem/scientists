@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyScript MicroPython Example</title>
+    
+    <!-- 1. Load the PyScript visual stylesheet -->
+    <link rel="stylesheet" href="https://pyscript.net" />
+    
+    <!-- 2. Load the PyScript core logic engine via WebAssembly -->
+    <script type="module" src="https://pyscript.net"></script>
+    
+    <style>
+        body { font-family: sans-serif; padding: 40px; text-align: center; background: #f9f9f9; }
+        button { padding: 12px 24px; font-size: 16px; cursor: pointer; background: #0073e6; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #0059b3; }
+        h2 { color: #333; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>⚡ PyScript + MicroPython (Wasm)</h1>
+    <p>This page runs real Python code inside your web browser at near-native speeds.</p>
+
+    <!-- HTML Elements to interact with -->
+    <button id="my-button">Click Me!</button>
+    <h2 id="output-text">Waiting for your click...</h2>
+
+    <!-- 3. The Python Environment. Notice type="mpy" instructs it to use MicroPython -->
+    <script type="mpy">
+        # Import target and document from the pyscript module to control the web page
+        from pyscript import document, window
+
+        # Define a function to handle the button click event
+        def handle_click(event):
+            # Select our output text element
+            output = document.querySelector("#output-text")
+            
+            # Change the text content dynamically
+            output.innerText = "🎉 Hello from MicroPython running inside WebAssembly!"
+            
+            # Log a message to the browser's developer console
+            print("Button was clicked successfully.")
+
+        # Bind our Python function to the HTML button's 'click' event
+        button = document.querySelector("#my-button")
+        button.addEventListener("click", handle_click)
+    </script>
+
+</body>
+</html>
