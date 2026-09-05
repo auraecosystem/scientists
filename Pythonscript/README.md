@@ -1,9 +1,13 @@
-# Hello World Example
+# Scientists PyScript browser entrypoint
 
-This is a basic example of how to create a `PyScript` application that adds a terminal to the page and prints "Hello World" to it. This example is meant to be a starting point for creating more complex applications.
+This directory contains the optional PyScript browser integration for Aura Scientists.
 
-## Resources
+`scientists.html` provides a local page shell with a `#scientists-app` mount point. Its local PyScript entrypoint is `pyscript/entrypoint.py`.
 
-- [Pyscript - Terminal](https://pyscript.github.io/docs/2024.3.1/user-guide/terminal/)
+The entrypoint mounts the `scientists.web` DOM adapter and connects the prompt to the deterministic Scientists runtime through `mount_scientists_ui`.
 
-[hello-world](https://examples.pyscriptapps.com/hello-world/)
+The browser adapter remains optional. The core Python runtime does not import PyScript eagerly, so normal command-line and server execution remain browser-independent.
+
+## Runtime requirement
+
+The page expects a PyScript-capable host/runtime to execute the local `type="py"` module. This repository does not redirect the page to third-party documentation or remote example pages.
