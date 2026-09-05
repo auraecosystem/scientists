@@ -67,7 +67,8 @@ JavaScript • TypeScript • Node.js • React • Next.js • Python • PyTor
 ---
 
 ## Get in touch
-- Website: https://web4.io  
+- Website: https://web4.0
+- https://web4.ai
 - GitHub: https://github.com/Web4application
 - https://github.com/auraecosystem
 - https://github.com/qubuhub  
