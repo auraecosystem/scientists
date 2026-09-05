@@ -1,6 +1,6 @@
 [tools]
 python = "3.12.13"
-node = "20.20.2"
+node = "22"
 ruby = "3.4.4"
 rust = "1.89.0"
 swift = "6.1.3"
