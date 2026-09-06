@@ -1,4 +1,7 @@
- $ npm run dev
+man git-clone https://github.com/Web4application/kubu-hai.model.h5.git
+cd kubu-hai.model.h5
+pip install -r requirements.txt
+npm run dev
 homebrewinstall Alexsvensson99/tap/pkglift
 python -m http.server python -m pip install -e '.[dev]'
 python -m pytest
