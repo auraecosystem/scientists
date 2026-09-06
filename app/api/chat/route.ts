@@ -1,5 +1,6 @@
 import { google } from '@ai-sdk/google';
 import { convertToModelMessages, streamText } from 'ai';
+import type { ModelMessage } from 'ai';
 import type { NextRequest } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -23,29 +24,31 @@ function validMediaPart(part: unknown): boolean {
   if (part.type === 'text') return typeof part.value === 'string' && part.value.length <= MAX_TEXT_LENGTH;
   return typeof part.base64Data === 'string' && part.base64Data.length > 0 && part.base64Data.length <= MAX_MEDIA_BASE64_LENGTH && /^[A-Za-z0-9+/]*={0,2}$/.test(part.base64Data) && validMime(part.mimeType, part.type as 'image' | 'audio');
 }
-function toModelContent(content: unknown) {
+function toModelContent(content: unknown, role: 'user' | 'assistant') {
   if (typeof content === 'string') { if (!content.trim() || content.length > MAX_TEXT_LENGTH) throw new Error('Invalid message text.'); return content; }
   if (!Array.isArray(content) || content.length === 0 || content.length > MAX_PARTS_PER_MESSAGE) throw new Error('Message content must be text or a non-empty array of multimodal parts.');
   return content.map((part) => {
     if (!validMediaPart(part)) throw new Error('Invalid multimodal content part.');
     const p = part as { type: 'text' | 'image' | 'audio'; value?: string; base64Data?: string; mimeType?: string };
     if (p.type === 'text') return { type: 'text' as const, text: p.value ?? '' };
+    if (role === 'assistant') throw new Error('Assistant messages may only contain text.');
     const mimeType = p.mimeType || (p.type === 'image' ? 'image/png' : 'audio/wav');
     const dataUrl = `data:${mimeType};base64,${p.base64Data}`;
-    return p.type === 'image' ? { type: 'image' as const, image: dataUrl } : { type: 'file' as const, data: dataUrl, mimeType };
+    return p.type === 'image' ? { type: 'image' as const, image: dataUrl } : { type: 'file' as const, data: dataUrl, mediaType: mimeType };
   });
 }
-function toModelMessages(messages: unknown[]) {
+function toModelMessages(messages: unknown[]): ModelMessage[] {
   let mediaTotal = 0;
-  return messages.map((message) => {
+  return messages.map((message): ModelMessage => {
     if (!isRecord(message) || !['user', 'assistant', 'system'].includes(String(message.role))) throw new Error('Message role must be user, assistant, or system.');
+    const role = message.role as 'user' | 'assistant' | 'system';
     const content = message.content;
-    if (typeof content === 'string') { if (!content.trim() || content.length > MAX_TEXT_LENGTH) throw new Error('Invalid message text.'); return { role: message.role as 'user' | 'assistant' | 'system', content }; }
-    if (message.role === 'system') throw new Error('System messages must use text content.');
+    if (typeof content === 'string') { if (!content.trim() || content.length > MAX_TEXT_LENGTH) throw new Error('Invalid message text.'); return { role, content } as ModelMessage; }
+    if (role === 'system') throw new Error('System messages must use text content.');
     if (!Array.isArray(content)) throw new Error('Message content must be text or multimodal parts.');
     for (const part of content) if (isRecord(part) && typeof part.base64Data === 'string') mediaTotal += part.base64Data.length;
     if (mediaTotal > MAX_TOTAL_MEDIA_BASE64_LENGTH) throw new Error('Total multimodal payload exceeds the request limit.');
-    return { role: message.role as 'user' | 'assistant', content: toModelContent(content) };
+    return { role, content: toModelContent(content, role) } as ModelMessage;
   });
 }
 
