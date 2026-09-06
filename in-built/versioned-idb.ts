@@ -1,12 +1,12 @@
+import { Tiktoken } from 'js-tiktoken/lite';
 import { CURRENT_RANK_MANIFEST } from './rank-manifest';
-import type { TiktokenBPE } from 'js-tiktoken/lite';
 import type { RankManifestEntry } from './types';
 
 const DB_NAME = 'ScientistsTiktokenCache';
 const STORE_NAME = 'versioned-ranks';
 const DB_VERSION = 2;
 type RankModelKey = keyof typeof CURRENT_RANK_MANIFEST;
-type RankData = TiktokenBPE;
+type RankData = ConstructorParameters<typeof Tiktoken>[0];
 type CacheEntry = { ranks: RankData; version: string; updatedAt: number };
 
 function openDB(): Promise<IDBDatabase> {
