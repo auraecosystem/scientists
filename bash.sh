@@ -28,3 +28,7 @@ $if mode=vi
     "k": history-search-backward
     "j": history-search-forward
 $endif
+# 
+npm install
+npm run test:runtime
+npm run build
