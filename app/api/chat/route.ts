@@ -15,6 +15,8 @@ const MAX_TOTAL_MEDIA_BASE64_LENGTH = 24_000_000;
 const MAX_REQUEST_BYTES = 26_000_000;
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
 
+type ConversationModelMessage = Extract<ModelMessage, { role: 'user' | 'assistant' }>;
+
 function jsonError(message: string, status: number) { return Response.json({ error: message }, { status }); }
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null; }
 function isUIMessage(value: unknown): boolean { return isRecord(value) && Array.isArray(value.parts) && !('content' in value); }
@@ -75,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
     const modelMessages = toModelMessages(messages);
     const system = modelMessages.filter((m) => m.role === 'system').map((m) => String(m.content)).join('\n\n');
-    const conversation = modelMessages.filter((m) => m.role !== 'system');
+    const conversation = modelMessages.filter((m): m is ConversationModelMessage => m.role !== 'system');
     const result = streamText({ model: google(GEMINI_MODEL), ...(system ? { system } : {}), messages: conversation });
     return result.toTextStreamResponse({ headers: { 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' } });
   } catch (error) {
