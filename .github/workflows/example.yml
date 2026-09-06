@@ -1,0 +1,93 @@
+name: Run Dependabot
+on:
+  workflow_dispatch:
+
+jobs:
+  run-dependabot:
+    permissions:
+      # Important not to give Dependabot write access in case it runs arbitrary
+      # code as some ecosystems do.
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+        # Checkout code to get the Dependabot CLI input file
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # Checkout to a directory to keep the working dir clean for the update.
+        with:
+          path: repo
+
+      - name: Download CLI
+        env:
+          # To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo dependabot/cli -p "*linux-amd64.tar.gz"
+          tar xzvf *.tar.gz >/dev/null 2>&1
+          ./dependabot --version
+
+      - name: Run Dependabot
+        env:
+          # GITHUB_TOKEN shows an example of how Dependabot CLI can be used with secrets.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Run Dependabot CLI with options:
+          # -f: the path to the job input
+          # --local: use the locally checked out code instead of cloning each time
+          # --timeout: the maximum time to wait for a job to finish
+          ./dependabot update \
+            -f repo/.github/dependabot/go.yml \
+            --local repo \
+            --timeout 20m >> result.jsonl || true
+          ./dependabot update \
+            -f repo/.github/dependabot/bundler.yml \
+            --local repo \
+            --timeout 20m >> result.jsonl || true
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependabot-result
+          path: result.jsonl
+
+  create-prs:
+    permissions:
+      # This job creates PRs, so it needs write access.
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    needs: run-dependabot
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download result
+        uses: actions/download-artifact@v4
+        with:
+          name: dependabot-result
+
+      - name: Create PRs
+        env:
+          # To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable.
+          GH_TOKEN: ${{ github.token }}
+        run: bash create.sh result.jsonl
+        
+     - name: Setup Go environment
+       uses: actions/setup-go@v7.0.0
+       with:
+         # The Go version to download (if necessary) and use. Supports semver spec and ranges. Be sure to enclose this option in single quotation marks.
+       go-version: # optional
+    # Path to the go.mod, go.work, .go-version, or .tool-versions file.
+      go-version-file: # optional
+    # Set this option to true if you want the action to always check for the latest available version that satisfies the version spec
+     check-latest: # optional
+    # Used to pull Go distributions from go-versions. Since there's a default, this is typically not supplied by the user. When running this action on github.com, the default value is sufficient. When running on GHES, you can pass a personal access token for github.com if you are experiencing rate limiting.
+     token: # optional, default is ${{ github.server_url == 'https://github.com' && github.token || '' }}
+    # Used to specify whether caching is needed. Set to true, if you'd like to enable caching.
+    cache: # optional, default is true
+    # Used to specify the path to a dependency file (e.g., go.mod, go.sum)
+    cache-dependency-path: # optional
+    # Target architecture for Go to use. Examples: x86, x64. Will use system architecture by default.
+    architecture: # optional
+    # Custom base URL for downloading Go distributions. Use this to download Go from a mirror or custom source. Defaults to "https://go.dev/dl". Can also be set via the GO_DOWNLOAD_BASE_URL environment variable. The input takes precedence over the environment variable.
+    go-download-base-url: # optional
