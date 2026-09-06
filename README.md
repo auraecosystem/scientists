@@ -30,6 +30,9 @@ GEMINI_MODEL=gemini-2.5-flash
 ```
 
 `/api/health` reports service status and whether the server key is configured without returning the key.
+```uvx
+python train_model.py --config model_config.py
+```
 
 ## Routes
 
@@ -54,7 +57,7 @@ User-facing navigation remains internal to this project. No third-party document
 
 ## Verification
 
-```ps1
+```bash
 npm install
 npm run test:runtime
 npm run build
@@ -76,3 +79,5 @@ pip install -r requirements.txt
 - Explicit validation and bounded request handling.
 - Versioned client tokenizer cache.
 - Self-contained user-facing application.
+
+![video.hevc](https://labs.google/fx/tools/flow/shared/video/fa16262d-dbdf-4e25-a0da-079a204626dd)
