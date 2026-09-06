@@ -62,6 +62,11 @@ npm run build
 
 The production build regenerates tokenizer cache metadata from the installed tokenizer assets. CI runs the Python verification suite, TypeScript runtime tests, and Next.js production build.
 
+```bash
+git clone https://github.com/Web4application/kubu-hai.model.h5.git
+cd kubu-hai.model.h5
+pip install -r requirements.txt
+```
 ## Principles
 
 - Model-agnostic intelligence boundary.
