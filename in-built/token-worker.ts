@@ -1,12 +1,12 @@
 import { Tiktoken } from 'js-tiktoken/lite';
-import type { TiktokenBPE } from 'js-tiktoken/lite';
 import { getValidCachedRanks, setVersionedCachedRanks } from './versioned-idb';
 import type { MultimodalMessage } from './types';
 
 const MODEL_KEY = 'cl100k_base' as const;
 let encoder: Tiktoken | null = null;
 let encoderPromise: Promise<Tiktoken> | null = null;
-type RankModule = { default: TiktokenBPE };
+type RankData = ConstructorParameters<typeof Tiktoken>[0];
+type RankModule = { default: RankData };
 
 async function getWorkerEncoder(): Promise<Tiktoken> {
   if (encoder) return encoder;
