@@ -24,7 +24,7 @@ Browser media can be normalized from canvas/image/blob/audio/binary inputs into 
 
 Configuration:
 
-```text
+```env
 GEMINI_API_KEY=server-side-key
 GEMINI_MODEL=gemini-2.5-flash
 ```
@@ -54,7 +54,7 @@ User-facing navigation remains internal to this project. No third-party document
 
 ## Verification
 
-```bash
+```ps1
 npm install
 npm run test:runtime
 npm run build
