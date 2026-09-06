@@ -1,4 +1,5 @@
-brew install Alexsvensson99/tap/pkglift
+mbrew $ npm run dev
+install Alexsvensson99/tap/pkglift
 python -m http.server python -m pip install -e '.[dev]'
 python -m pytest
 python -m mypy scientists
