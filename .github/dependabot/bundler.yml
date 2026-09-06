@@ -22,7 +22,7 @@ job:
 credentials:
   - type: git_source
     # Most credentials take a url or host
-    host: gh.io
+    host: github.com
     # Credentials will be either username/password or token
     username: x-access-token
     # Dependabot CLI will inject secrets from the environment
