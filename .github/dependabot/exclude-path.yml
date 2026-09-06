@@ -1,0 +1,35 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    exclude-paths:
+      - "src/test/assets"
+      - "vendor/**"
+      - "src/*.js"
+      - "src/test/helper.js"
+
+# Sample patterns that can be used-
+
+# Pattern: docs/*.json
+# Matches: docs/foo.json, docs/bar.json
+
+# Pattern: *.lock
+# Matches: Gemfile.lock, package.lock, foo.lock (in any directory)
+
+# Pattern: test/**
+# Matches: test/foo.rb, test/bar/baz.rb, test/any/depth/file.txt
+
+# Pattern: config/settings.yml
+# Matches: config/settings.yml
+
+# Pattern: **/*.md
+# Matches: README.md, docs/guide.md, any/depth/file.md
+
+# Pattern: src/*
+# Matches: src/main.rb, src/app.js
+# Does NOT match: src/utils/helper.rb
+
+# Pattern: hidden/.*
+# Matches: hidden/.env, hidden/.secret
