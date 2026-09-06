@@ -20,6 +20,7 @@ Native context metrics are exposed when available. Fallback sessions maintain sy
 
 Browser media can be normalized from canvas/image/blob/audio/binary inputs into JSON-safe Base64 for the HTTP fallback. Credentials are server-side only.
 
+![](https://flow.google.com/project/8e2ba8d3-0933-43bf-8c9d-f149de15508f/edit/ccdea44c-9901-4b13-96da-f85ba328bacb)
 ## Server API
 
 `/api/chat` is a Node.js streaming route. It validates message count, multimodal part count, text size, MIME types, Base64 syntax, aggregate media size, and raw request size before invoking Gemini.
