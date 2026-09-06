@@ -1,6 +1,6 @@
 <a href="https://flow.google.com/project/8e2ba8d3-0933-43bf-8c9d-f149de15508f/edit/ccdea44c-9901-4b13-96da-f85ba328bacb">Open Google Flow Project</a>
 
-[](https://labs.google/flow/tv/channels)
+![](https://labs.google/flow/tv/channels)
 # Aura Scientists
 
 Author: Seriki Yakub
