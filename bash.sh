@@ -35,3 +35,6 @@ $endif
 npm install
 npm run test:runtime
 npm run build
+pip install loralib
+# Alternatively
+# pip install git+https://github.com/microsoft/LoRA
