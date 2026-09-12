@@ -19,7 +19,6 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "next": "latest",
     "typescript": "latest"
   },
   "devDependencies": {
