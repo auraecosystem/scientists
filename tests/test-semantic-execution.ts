@@ -15,7 +15,9 @@ test('semantic validation enforces localOnly', () => {
 });
 
 test('semantic validation requires a JSON schema', () => {
-  assert.throws(() => validateSemanticExecution({ subject: 'return json', inputs: ['text'], output: { type: 'json' } } as any, 'cloud'), /output.schema/);
+  const result = validateSemanticExecution({ subject: 'return json', inputs: ['text'], output: { type: 'json' } } as any, 'cloud');
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join(' '), /output.schema/);
 });
 
 test('semantic create selects cloud fallback and returns verified state', async () => {
