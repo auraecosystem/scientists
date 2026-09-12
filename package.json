@@ -8,7 +8,7 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
-    "test:runtime": "tsx --test tests/test-builtin-ai.ts"
+    "test:runtime": "tsx --test tests/test-builtin-ai.ts tests/test-semantic-execution.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "latest",
@@ -19,6 +19,7 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "next": "latest",
     "typescript": "latest"
   },
   "devDependencies": {
