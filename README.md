@@ -62,9 +62,11 @@ User-facing navigation remains internal to this project. No third-party document
 ## Verification
 
 ```bash
+npm install --save @types/dom-chromium-ai
 npm install
 npm run test:runtime
 npm run build
+
 ```
 
 The production build regenerates tokenizer cache metadata from the installed tokenizer assets. CI runs the Python verification suite, TypeScript runtime tests, and Next.js production build.
