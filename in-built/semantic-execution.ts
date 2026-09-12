@@ -53,12 +53,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 function validateSchema(schema: unknown): string[] {
   if (!isPlainObject(schema)) return ['output.schema must be a JSON Schema object.'];
   if (schema.type !== undefined && typeof schema.type !== 'string') return ['output.schema.type must be a string when provided.'];
-  if (schema.type === 'object' && schema.properties !== undefined && !isPlainObject(schema.properties)) {
-    return ['output.schema.properties must be an object when provided.'];
-  }
-  if (schema.required !== undefined && (!Array.isArray(schema.required) || schema.required.some((key) => typeof key !== 'string'))) {
-    return ['output.schema.required must be an array of strings when provided.'];
-  }
+  if (schema.type === 'object' && schema.properties !== undefined && !isPlainObject(schema.properties)) return ['output.schema.properties must be an object when provided.'];
+  if (schema.required !== undefined && (!Array.isArray(schema.required) || schema.required.some((key) => typeof key !== 'string'))) return ['output.schema.required must be an array of strings when provided.'];
   return [];
 }
 
@@ -100,13 +96,9 @@ export function validateSemanticExecution(request: SemanticCreateRequest, provid
 
   if (!capabilities) errors.push(`Unknown provider: ${provider}.`);
   else for (const input of inputs) if (!capabilities.includes(input)) errors.push(`Provider ${provider} does not support ${input} input.`);
-
-  if (request.constraints?.provider && request.constraints.provider !== provider) {
-    errors.push(`Requested provider ${request.constraints.provider} does not match selected provider ${provider}.`);
-  }
+  if (request.constraints?.provider && request.constraints.provider !== provider) errors.push(`Requested provider ${request.constraints.provider} does not match selected provider ${provider}.`);
   if (request.constraints?.localOnly && provider === 'cloud') errors.push('localOnly execution cannot use the cloud provider.');
   if (session && session.source !== provider) errors.push(`Session provenance mismatch: session=${session.source}, provider=${provider}.`);
-
   if (provider === 'webllm' && inputs.some((input) => input !== 'text')) warnings.push('WebLLM currently provides text inference in this runtime; multimodal input must be routed elsewhere.');
 
   return {
@@ -114,15 +106,7 @@ export function validateSemanticExecution(request: SemanticCreateRequest, provid
     status: errors.length === 0 ? 'verified' : 'rejected',
     errors,
     warnings,
-    evidence: {
-      phase: 'validate',
-      provider,
-      capabilities,
-      inputs,
-      outputType: request.output.type,
-      localOnly: request.constraints?.localOnly === true,
-      sessionSource: session?.source ?? null,
-    },
+    evidence: { phase: 'validate', provider, capabilities, inputs, outputType: request.output.type, localOnly: request.constraints?.localOnly === true, sessionSource: session?.source ?? null },
   };
 }
 
@@ -136,18 +120,26 @@ function buildSessionOptions(request: SemanticCreateRequest): SessionOptions {
   return {
     expectedInputs: inputs.map((type) => type === 'text' ? { type, languages: ['en'] } : { type }),
     expectedOutputs: [{ type: 'text', languages: ['en'] }],
-    ...(request.output.type === 'json' ? {} : {}),
     ...(request.constraints?.maxTokens ? { maxTokenBudget: request.constraints.maxTokens } : {}),
   };
+}
+
+function forceProvider(options: SmartCreateOptions, provider?: SemanticProvider): SmartCreateOptions {
+  if (!provider || provider === 'native') return options;
+  const baseGlobal = options.globalObject || globalThis;
+  const globalObject = { ...baseGlobal, navigator: {}, LanguageModel: undefined as unknown } as Record<string, unknown>;
+  delete globalObject.LanguageModel;
+  return { ...options, globalObject, preferWebLLM: provider === 'webllm' };
 }
 
 export async function createSemanticExecution(request: SemanticCreateRequest, options: SmartCreateOptions = {}): Promise<SemanticExecution> {
   const initial = validateRequest(request);
   if (!initial.valid) throw new TypeError(initial.errors.join(' '));
+  if (request.constraints?.localOnly && request.constraints.provider === 'cloud') throw new Error('Semantic validation rejected execution: localOnly execution cannot use the cloud provider.');
 
   const sessionOptions = buildSessionOptions(request);
   const session = await SmartLanguageSession.create({
-    ...options,
+    ...forceProvider(options, request.constraints?.provider),
     options: { ...(options.options || {}), ...sessionOptions },
     maxFallbackTurns: request.constraints?.maxTurns ?? options.maxFallbackTurns,
     maxTokenBudget: request.constraints?.maxTokens ?? options.maxTokenBudget,
@@ -158,7 +150,6 @@ export async function createSemanticExecution(request: SemanticCreateRequest, op
     await session.destroy();
     throw new Error(`Semantic validation rejected execution: ${validation.errors.join(' ')}`);
   }
-
   return { request, provider: session.source, session, validation };
 }
 
@@ -175,18 +166,10 @@ export function validateSemanticResult(execution: SemanticExecution, result: str
       const value = JSON.parse(result);
       const schema = execution.request.output.schema || {};
       if (schema.type === 'object' && !isPlainObject(value)) errors.push('Result does not satisfy schema.type=object.');
-      if (Array.isArray(schema.required) && isPlainObject(value)) {
-        for (const key of schema.required) if (typeof key === 'string' && !(key in value)) errors.push(`Result is missing required property: ${key}.`);
-      }
+      if (Array.isArray(schema.required) && isPlainObject(value)) for (const key of schema.required) if (typeof key === 'string' && !(key in value)) errors.push(`Result is missing required property: ${key}.`);
     } catch {
       errors.push('Result is not valid JSON.');
     }
   }
-  return {
-    valid: errors.length === 0,
-    status: errors.length === 0 ? 'verified' : 'rejected',
-    errors,
-    warnings: [],
-    evidence: { phase: 'result', provider: execution.provider, outputType: execution.request.output.type },
-  };
+  return { valid: errors.length === 0, status: errors.length === 0 ? 'verified' : 'rejected', errors, warnings: [], evidence: { phase: 'result', provider: execution.provider, outputType: execution.request.output.type } };
 }
