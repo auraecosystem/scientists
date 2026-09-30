@@ -2,17 +2,18 @@ import { Tiktoken } from 'js-tiktoken/lite';
 import { getValidCachedRanks, setVersionedCachedRanks } from './versioned-idb';
 import type { MultimodalMessage } from './types';
 
-const MODEL_KEY = 'cl100k_base';
+const MODEL_KEY = 'cl100k_base' as const;
 let encoder: Tiktoken | null = null;
 let encoderPromise: Promise<Tiktoken> | null = null;
-type RankModule = { default: Record<string, number> };
+type RankData = ConstructorParameters<typeof Tiktoken>[0];
+type RankModule = { default: RankData };
 
 async function getWorkerEncoder(): Promise<Tiktoken> {
   if (encoder) return encoder;
   if (!encoderPromise) encoderPromise = (async () => {
     const cachedRanks = await getValidCachedRanks(MODEL_KEY);
     if (cachedRanks) return new Tiktoken(cachedRanks);
-    const ranks = await import('js-tiktoken/ranks/cl100k_base') as RankModule;
+    const ranks = await import('js-tiktoken/ranks/cl100k_base') as unknown as RankModule;
     await setVersionedCachedRanks(MODEL_KEY, ranks.default);
     return new Tiktoken(ranks.default);
   })().then((value) => { encoder = value; return value; }).catch((error) => { encoderPromise = null; throw error; });
