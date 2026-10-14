@@ -1,0 +1,193 @@
+openapi: 3.0.3
+info:
+  title: web4.0 IoT Device API
+  version: "1.0.0"
+  description: >
+    HTTP surface for the web4.0 IoT pipeline (ROUTE -> INSTRUCT -> VERIFY -> RESULT).
+    Devices post telemetry; verified readings are exposed as RDF-linked resources.
+
+servers:
+  - url: https://your-account.near.page
+    description: web4 gateway (production)
+  - url: http://localhost:8080
+    description: local dashboard/dev server
+
+paths:
+  /devices/{device_id}/latest:
+    get:
+      summary: Get the latest verified reading for a device
+      description: >
+        RESULT stage output. Returns the most recent telemetry reading that
+        passed VERIFY (valid LCT, T3/V3 above threshold).
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "fleet-01:temp-sensor-042"
+      responses:
+        "200":
+          description: Latest verified reading
+          content:
+            application/rdf+json:
+              schema:
+                $ref: "#/components/schemas/DeviceReading"
+        "404":
+          description: No verified reading available for this device
+
+  /devices/{device_id}/profile:
+    get:
+      summary: Get the RDF profile for a device
+      description: >
+        INSTRUCT stage context source (fetch_device_profile MCP tool).
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Device RDF profile
+          content:
+            application/rdf+json:
+              schema:
+                $ref: "#/components/schemas/DeviceProfile"
+        "404":
+          description: Unknown device
+
+  /iot/telemetry:
+    post:
+      summary: Submit a telemetry event
+      description: >
+        Entry point for the ROUTE stage. Payload is normalized and passed
+        through INSTRUCT and VERIFY before a RESULT is emitted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelemetryEvent"
+      responses:
+        "202":
+          description: Accepted for processing
+        "403":
+          description: >
+            VERIFY failed (invalid or missing LCT, or T3/V3 below configured
+            thresholds). Event is quarantined, not processed further.
+        "400":
+          description: Malformed payload, rejected at ROUTE stage
+
+  /iot/telemetry/quarantined:
+    get:
+      summary: List quarantined telemetry events
+      description: Events that failed VERIFY, for audit/inspection.
+      parameters:
+        - name: zone
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of quarantined events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuarantinedEvent"
+
+components:
+  schemas:
+    DeviceProfile:
+      type: object
+      properties:
+        "@context":
+          type: string
+          example: "https://web4.example/vocab"
+        "@id":
+          type: string
+          example: "device:fleet-01:temp-sensor-042"
+        type:
+          type: string
+          example: "TemperatureSensor"
+        owner:
+          type: string
+          example: "zone:warehouse-3"
+        lct:
+          type: string
+          example: "lct:issuer/fleet-01#042"
+        trust:
+          type: object
+          properties:
+            t3:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+            v3:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+        capabilities:
+          type: array
+          items:
+            type: string
+
+    TelemetryEvent:
+      type: object
+      required: [device_id, lct, reading]
+      properties:
+        device_id:
+          type: string
+        lct:
+          type: string
+          description: Linked Context Token presented by the device
+        reading:
+          type: object
+          additionalProperties: true
+          example:
+            temperature_c: 21.4
+            humidity_pct: 38.0
+        timestamp:
+          type: string
+          format: date-time
+
+    DeviceReading:
+      type: object
+      properties:
+        "@id":
+          type: string
+        device_id:
+          type: string
+        reading:
+          type: object
+          additionalProperties: true
+        verified_at:
+          type: string
+          format: date-time
+        trust_at_verification:
+          type: object
+          properties:
+            t3:
+              type: number
+            v3:
+              type: number
+
+    QuarantinedEvent:
+      type: object
+      properties:
+        device_id:
+          type: string
+        reason:
+          type: string
+          example: "t3_below_threshold"
+        received_at:
+          type: string
+          format: date-time
+        raw_payload:
+          type: object
+          additionalProperties: true

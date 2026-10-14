@@ -62,16 +62,18 @@ User-facing navigation remains internal to this project. No third-party document
 ## Verification
 
 ```bash
+npm install --save @types/dom-chromium-ai
 npm install
 npm run test:runtime
 npm run build
+
 ```
 
 The production build regenerates tokenizer cache metadata from the installed tokenizer assets. CI runs the Python verification suite, TypeScript runtime tests, and Next.js production build.
 
 ```bash
-git clone https://github.com/Web4application/kubu-hai.model.h5.git
-cd kubu-hai.model.h5
+git clone https://github.com/auraecosystem/model.h5.git
+cd model.h5
 pip install -r requirements.txt
 ```
 ## Principles
@@ -85,8 +87,7 @@ pip install -r requirements.txt
 - Self-contained user-facing application.
 
 ![video.hevc](https://labs.google/fx/tools/flow/shared/video/fa16262d-dbdf-4e25-a0da-079a204626dd)
-
-———-
-
+```html
 <a href="https://flow.google.com/project/8e2ba8d3-0933-43bf-8c9d-f149de15508f/edit/ccdea44c-9901-4b13-96da-f85ba328bacb">Open Google Flow Project</a><iframe 
 src="https://flow.google.com/project/8e2ba8d3-0933-43bf-8c9d-f149de15508f/edit/ccdea44c-9901-4b13-96da-f85ba328bacb" width="100%" height="600px" style="border:none;"></iframe>
+```
