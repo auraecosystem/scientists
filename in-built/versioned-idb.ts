@@ -1,10 +1,12 @@
+import { Tiktoken } from 'js-tiktoken/lite';
 import { CURRENT_RANK_MANIFEST } from './rank-manifest';
 import type { RankManifestEntry } from './types';
 
 const DB_NAME = 'ScientistsTiktokenCache';
 const STORE_NAME = 'versioned-ranks';
 const DB_VERSION = 2;
-type RankData = Record<string, number>;
+type RankModelKey = keyof typeof CURRENT_RANK_MANIFEST;
+type RankData = ConstructorParameters<typeof Tiktoken>[0];
 type CacheEntry = { ranks: RankData; version: string; updatedAt: number };
 
 function openDB(): Promise<IDBDatabase> {
@@ -20,7 +22,7 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function getValidCachedRanks(modelKey: string): Promise<RankData | null> {
+export async function getValidCachedRanks(modelKey: RankModelKey): Promise<RankData | null> {
   const manifest: RankManifestEntry | undefined = CURRENT_RANK_MANIFEST[modelKey];
   if (!manifest || manifest.version === 'uninitialized') return null;
   try {
@@ -36,7 +38,7 @@ export async function getValidCachedRanks(modelKey: string): Promise<RankData | 
   } catch { return null; }
 }
 
-export async function setVersionedCachedRanks(modelKey: string, ranks: RankData): Promise<void> {
+export async function setVersionedCachedRanks(modelKey: RankModelKey, ranks: RankData): Promise<void> {
   const manifest = CURRENT_RANK_MANIFEST[modelKey];
   if (!manifest || manifest.version === 'uninitialized') return;
   try {
